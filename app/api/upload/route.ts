@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
   if (!url.includes("/upload/")) return url;
 
@@ -20,6 +23,10 @@ export async function POST(request: Request) {
 
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
     return NextResponse.json({ error: "Only images and videos are supported." }, { status: 400 });
+  }
+
+  if (file.size > 12_000_000) {
+    return NextResponse.json({ error: "File is too large after compression. Please choose a smaller file." }, { status: 413 });
   }
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

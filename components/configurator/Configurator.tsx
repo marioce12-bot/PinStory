@@ -30,8 +30,9 @@ type GeocodingFeature = {
   center?: [number, number];
 };
 
-const MAX_UPLOAD_IMAGE_SIZE = 1600;
-const IMAGE_COMPRESSION_QUALITY = 0.78;
+const MAX_UPLOAD_IMAGE_SIZE = 1280;
+const IMAGE_COMPRESSION_QUALITY = 0.68;
+const UPLOAD_TIMEOUT_MS = 45000;
 
 async function compressImageForUpload(file: File) {
   if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
@@ -39,7 +40,7 @@ async function compressImageForUpload(file: File) {
   }
 
   // Small images are already cheap to send; avoid unnecessary canvas work.
-  if (file.size < 900_000) return file;
+  if (file.size < 500_000) return file;
 
   try {
     const bitmap = await createImageBitmap(file);
@@ -67,6 +68,54 @@ async function compressImageForUpload(file: File) {
   } catch {
     return file;
   }
+}
+
+function uploadWithProgress(
+  formData: FormData,
+  onProgress: (percent: number) => void,
+) {
+  return new Promise<{ media_url?: string; media_type?: "image" | "video"; error?: string }>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const timeout = window.setTimeout(() => {
+      request.abort();
+      reject(new Error("Upload timeout"));
+    }, UPLOAD_TIMEOUT_MS);
+
+    request.open("POST", "/api/upload");
+
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    request.onload = () => {
+      window.clearTimeout(timeout);
+      try {
+        const payload = JSON.parse(request.responseText || "{}") as { media_url?: string; media_type?: "image" | "video"; error?: string };
+
+        if (request.status >= 200 && request.status < 300) {
+          resolve(payload);
+          return;
+        }
+
+        reject(new Error(payload.error || "Upload failed"));
+      } catch {
+        reject(new Error("Invalid upload response"));
+      }
+    };
+
+    request.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("Network upload error"));
+    };
+
+    request.onabort = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("Upload cancelled"));
+    };
+
+    request.send(formData);
+  });
 }
 
 export function Configurator({
@@ -207,27 +256,39 @@ export function Configurator({
       return;
     }
 
-    setUploadingPointId(point.id);
-    setStatus(lang === "en" ? "Optimizing your photo..." : "Optimisation de votre photo...");
+    try {
+      setUploadingPointId(point.id);
+      setStatus(lang === "en" ? "Optimizing your photo..." : "Optimisation de votre photo...");
 
-    const fileToUpload = file.type.startsWith("image/") ? await compressImageForUpload(file) : file;
-    setStatus(lang === "en" ? "Uploading your memory..." : "Upload de votre souvenir...");
+      const fileToUpload = file.type.startsWith("image/") ? await compressImageForUpload(file) : file;
+      setStatus(lang === "en" ? "Upload starting..." : "Démarrage de l’upload...");
 
-    const formData = new FormData();
-    formData.append("file", fileToUpload);
-    formData.append("plan", plan);
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+      formData.append("plan", plan);
 
-    const response = await fetch("/api/upload", { method: "POST", body: formData });
-    const result = (await response.json()) as { media_url?: string; media_type?: "image" | "video"; error?: string };
-    setUploadingPointId(null);
+      const result = await uploadWithProgress(formData, (percent) => {
+        setStatus(lang === "en" ? `Uploading your memory... ${percent}%` : `Upload de votre souvenir... ${percent}%`);
+      });
 
-    if (!response.ok || !result.media_url) {
-      setStatus(result.error || (lang === "en" ? "Upload failed." : "L’upload a échoué."));
-      return;
+      if (!result.media_url) {
+        setStatus(result.error || (lang === "en" ? "Upload failed." : "L’upload a échoué."));
+        return;
+      }
+
+      updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
+      setStatus(lang === "en" ? "Photo added." : "Photo ajoutée.");
+      window.setTimeout(() => setStatus(null), 1400);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed";
+      setStatus(
+        lang === "en"
+          ? `${message}. Try a smaller photo or check Cloudinary settings.`
+          : `${message}. Essayez une photo plus légère ou vérifiez Cloudinary.`,
+      );
+    } finally {
+      setUploadingPointId(null);
     }
-
-    updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
-    setStatus(null);
   }
 
   async function submit(identityEmail = creatorEmail) {
