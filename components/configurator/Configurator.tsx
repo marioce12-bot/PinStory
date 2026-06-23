@@ -299,9 +299,13 @@ export function Configurator({
                           ? lang === "en"
                             ? "Uploading..."
                             : "Upload en cours..."
-                          : lang === "en"
-                            ? "Upload one image, or a video with the Eternal plan."
-                            : "Ajoutez une image, ou une vidéo avec la formule Éternel."
+                          : limits.videos
+                            ? lang === "en"
+                              ? "Upload one image or video for this memory."
+                              : "Ajoutez une image ou une vidéo pour ce souvenir."
+                            : lang === "en"
+                              ? "Upload one photo for this memory."
+                              : "Ajoutez une photo pour ce souvenir."
                         : lang === "en"
                           ? "Media is disabled on the Free preview."
                           : "Les médias sont désactivés sur l’aperçu gratuit."}

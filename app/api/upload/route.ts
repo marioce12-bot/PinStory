@@ -7,9 +7,12 @@ export async function POST(request: Request) {
   const plan = String(formData.get("plan") || "free");
 
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file." }, { status: 400 });
-  if (plan === "free") return NextResponse.json({ error: "Media requires a paid plan." }, { status: 403 });
   if (file.type.startsWith("video/") && plan !== "eternal") {
     return NextResponse.json({ error: "Videos require the Eternal plan." }, { status: 403 });
+  }
+
+  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+    return NextResponse.json({ error: "Only images and videos are supported." }, { status: 400 });
   }
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

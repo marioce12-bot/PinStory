@@ -217,7 +217,7 @@ export default async function LandingPage({
               <p className="price">{planPrices[plan]}</p>
               <ul>
                 <li>{plan === "free" ? "3" : plan === "souvenir" ? "10" : "∞"} {isEnglish ? "points" : "points"}</li>
-                <li>{plan === "free" ? (isEnglish ? "No media" : "Aucun média") : plan === "souvenir" ? (isEnglish ? "Photos" : "Photos") : (isEnglish ? "Photos and videos" : "Photos et vidéos")}</li>
+                <li>{plan === "eternal" ? (isEnglish ? "Photos and videos" : "Photos et vidéos") : (isEnglish ? "Photos included" : "Photos incluses")}</li>
                 <li>{plan === "free" ? "14 jours" : plan === "souvenir" ? "6 mois" : (isEnglish ? "Lifetime" : "À vie")}</li>
               </ul>
               <Link className="btn-cta" href={`/${lang}/create?plan=${plan}`}>
