@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 
+function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
+  if (!url.includes("/upload/")) return url;
+
+  const transformation = resourceType === "video" ? "q_auto:good" : "f_auto,q_auto:good,w_1600,c_limit";
+  return url.replace("/upload/", `/upload/${transformation}/`);
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file");
@@ -28,12 +35,15 @@ export async function POST(request: Request) {
 
   const upload = await new Promise<{ secure_url: string; resource_type: string }>((resolve, reject) => {
     cloudinary.uploader
-      .upload_stream({ folder: "pinstory", resource_type: "auto" }, (error, result) => {
+      .upload_stream({ folder: "pinstory", resource_type: "auto", quality: "auto:good" }, (error, result) => {
         if (error || !result) reject(error || new Error("Upload failed."));
         else resolve({ secure_url: result.secure_url, resource_type: result.resource_type });
       })
       .end(bytes);
   });
 
-  return NextResponse.json({ media_url: upload.secure_url, media_type: upload.resource_type === "video" ? "video" : "image" });
+  return NextResponse.json({
+    media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
+    media_type: upload.resource_type === "video" ? "video" : "image",
+  });
 }

@@ -30,6 +30,45 @@ type GeocodingFeature = {
   center?: [number, number];
 };
 
+const MAX_UPLOAD_IMAGE_SIZE = 1600;
+const IMAGE_COMPRESSION_QUALITY = 0.78;
+
+async function compressImageForUpload(file: File) {
+  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
+    return file;
+  }
+
+  // Small images are already cheap to send; avoid unnecessary canvas work.
+  if (file.size < 900_000) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const ratio = Math.min(1, MAX_UPLOAD_IMAGE_SIZE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * ratio);
+    const height = Math.round(bitmap.height * ratio);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", IMAGE_COMPRESSION_QUALITY);
+    });
+
+    if (!blob || blob.size >= file.size) return file;
+
+    const safeName = file.name.replace(/\.[^.]+$/, "");
+    return new File([blob], `${safeName}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
 export function Configurator({
   lang,
   dictionary,
@@ -169,10 +208,13 @@ export function Configurator({
     }
 
     setUploadingPointId(point.id);
-    setStatus(null);
+    setStatus(lang === "en" ? "Optimizing your photo..." : "Optimisation de votre photo...");
+
+    const fileToUpload = file.type.startsWith("image/") ? await compressImageForUpload(file) : file;
+    setStatus(lang === "en" ? "Uploading your memory..." : "Upload de votre souvenir...");
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", fileToUpload);
     formData.append("plan", plan);
 
     const response = await fetch("/api/upload", { method: "POST", body: formData });
@@ -185,6 +227,7 @@ export function Configurator({
     }
 
     updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
+    setStatus(null);
   }
 
   async function submit(identityEmail = creatorEmail) {
