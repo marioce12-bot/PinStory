@@ -18,6 +18,7 @@ type CloudinaryConfig = {
   apiKey?: string;
   apiSecret?: string;
   missing: string[];
+  source: "CLOUDINARY_URL" | "separate_variables" | "invalid_cloudinary_url";
 };
 
 function cleanEnvValue(value?: string) {
@@ -42,13 +43,14 @@ function getCloudinaryConfig(): CloudinaryConfig {
         .filter(([, value]) => !value)
         .map(([key]) => key);
 
-      return { cloudName, apiKey, apiSecret, missing: missingKeys };
+      return { cloudName, apiKey, apiSecret, missing: missingKeys, source: "CLOUDINARY_URL" };
     } catch {
       return {
         cloudName: undefined,
         apiKey: undefined,
         apiSecret: undefined,
         missing: ["valid CLOUDINARY_URL"],
+        source: "invalid_cloudinary_url",
       };
     }
   }
@@ -65,7 +67,28 @@ function getCloudinaryConfig(): CloudinaryConfig {
     .filter(([, value]) => !value)
     .map(([key]) => key);
 
-  return { cloudName, apiKey, apiSecret, missing: missingKeys };
+  return { cloudName, apiKey, apiSecret, missing: missingKeys, source: "separate_variables" };
+}
+
+function getCloudinaryDiagnostics() {
+  const config = getCloudinaryConfig();
+  const rawCloudinaryUrl = cleanEnvValue(process.env.CLOUDINARY_URL);
+
+  return {
+    ok: config.missing.length === 0,
+    source: config.source,
+    missing: config.missing,
+    cloudName: config.cloudName || null,
+    apiKeyPresent: Boolean(config.apiKey),
+    apiKeyLast4: config.apiKey ? config.apiKey.slice(-4) : null,
+    apiSecretPresent: Boolean(config.apiSecret),
+    cloudinaryUrlPresent: Boolean(rawCloudinaryUrl),
+    cloudinaryUrlStartsCorrectly: rawCloudinaryUrl ? rawCloudinaryUrl.startsWith("cloudinary://") : false,
+    message:
+      config.missing.length === 0
+        ? "Cloudinary configuration is visible to Vercel. If upload still fails with 401, the API key/secret/cloud name combination is invalid."
+        : `Cloudinary configuration is incomplete in Vercel. Missing: ${config.missing.join(", ")}.`,
+  };
 }
 
 function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
@@ -119,6 +142,10 @@ async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video"
   });
 }
 
+export async function GET() {
+  return NextResponse.json(getCloudinaryDiagnostics());
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -141,7 +168,13 @@ export async function POST(request: Request) {
     const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
 
     if (missing.length > 0) {
-      return NextResponse.json({ error: `Cloudinary is not configured. Missing: ${missing.join(", ")}.` }, { status: 503 });
+      return NextResponse.json(
+        {
+          error: `Cloudinary is not configured. Missing: ${missing.join(", ")}.`,
+          diagnostics: getCloudinaryDiagnostics(),
+        },
+        { status: 503 },
+      );
     }
 
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
