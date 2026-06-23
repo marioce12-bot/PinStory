@@ -13,6 +13,61 @@ type CloudinaryError = Error & {
   http_code?: number;
 };
 
+type CloudinaryConfig = {
+  cloudName?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  missing: string[];
+};
+
+function cleanEnvValue(value?: string) {
+  return value?.trim().replace(/^['"]|['"]$/g, "");
+}
+
+function getCloudinaryConfig(): CloudinaryConfig {
+  const cloudinaryUrl = cleanEnvValue(process.env.CLOUDINARY_URL);
+
+  if (cloudinaryUrl) {
+    try {
+      const parsed = new URL(cloudinaryUrl);
+      const apiKey = decodeURIComponent(parsed.username || "");
+      const apiSecret = decodeURIComponent(parsed.password || "");
+      const cloudName = parsed.hostname;
+      const missing = [
+        ["CLOUDINARY_URL api_key", apiKey],
+        ["CLOUDINARY_URL api_secret", apiSecret],
+        ["CLOUDINARY_URL cloud_name", cloudName],
+      ] satisfies Array<[string, string | undefined]>;
+      const missingKeys = missing
+        .filter(([, value]) => !value)
+        .map(([key]) => key);
+
+      return { cloudName, apiKey, apiSecret, missing: missingKeys };
+    } catch {
+      return {
+        cloudName: undefined,
+        apiKey: undefined,
+        apiSecret: undefined,
+        missing: ["valid CLOUDINARY_URL"],
+      };
+    }
+  }
+
+  const cloudName = cleanEnvValue(process.env.CLOUDINARY_CLOUD_NAME);
+  const apiKey = cleanEnvValue(process.env.CLOUDINARY_API_KEY);
+  const apiSecret = cleanEnvValue(process.env.CLOUDINARY_API_SECRET);
+  const missing = [
+    ["CLOUDINARY_CLOUD_NAME", cloudName],
+    ["CLOUDINARY_API_KEY", apiKey],
+    ["CLOUDINARY_API_SECRET", apiSecret],
+  ] satisfies Array<[string, string | undefined]>;
+  const missingKeys = missing
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  return { cloudName, apiKey, apiSecret, missing: missingKeys };
+}
+
 function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
   if (!url.includes("/upload/")) return url;
 
@@ -21,6 +76,11 @@ function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
 }
 
 function getErrorMessage(error: unknown) {
+  const cloudinaryStatus = (error as CloudinaryError | undefined)?.http_code;
+  if (cloudinaryStatus === 401) {
+    return "Cloudinary rejected the credentials. Check CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET in Vercel.";
+  }
+
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string") return error;
   return "Unknown upload error";
@@ -78,16 +138,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File is too large after compression. Please choose a smaller file." }, { status: 413 });
     }
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    const missing = [
-      ["CLOUDINARY_CLOUD_NAME", cloudName],
-      ["CLOUDINARY_API_KEY", apiKey],
-      ["CLOUDINARY_API_SECRET", apiSecret],
-    ]
-      .filter(([, value]) => !value)
-      .map(([key]) => key);
+    const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
 
     if (missing.length > 0) {
       return NextResponse.json({ error: `Cloudinary is not configured. Missing: ${missing.join(", ")}.` }, { status: 503 });
