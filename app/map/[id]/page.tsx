@@ -26,6 +26,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
         expires_at: data.expires_at || null,
         payment_status: data.payment_status || "free",
         secret_code: data.secret_code || undefined,
+        audioUrl: data.audioUrl || undefined,
         qr_code_url: data.qr_code_url,
         custom_qr_logo_url: data.custom_qr_logo_url,
         points: (data.points || []).map((point, index) => ({
@@ -70,6 +71,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
     expires_at: map.expires_at,
     payment_status: map.payment_status,
     secret_code: map.secret_code || undefined,
+    audioUrl: map.audioUrl || undefined,
     qr_code_url: map.qr_code_url,
     custom_qr_logo_url: map.custom_qr_logo_url,
     points: (points || []).map((point) => ({

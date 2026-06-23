@@ -27,6 +27,7 @@ export type MemoryMap = {
   expires_at: string | null;
   payment_status: "pending" | "paid" | "failed" | "free";
   secret_code?: string;
+  audioUrl?: string;
   qr_code_url?: string;
   custom_qr_logo_url?: string;
   points: MemoryPoint[];

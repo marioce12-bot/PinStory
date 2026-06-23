@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { QRCodeCanvas } from "qrcode.react";
+import { BackgroundMusic } from "@/components/map/BackgroundMusic";
 import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getMapboxStyle, PLAN_LIMITS } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
@@ -182,6 +183,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
 
   return (
     <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
       {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
 
       {!mapboxToken ? (

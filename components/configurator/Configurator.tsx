@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup } from "firebase/auth";
+import { AudioSelector } from "@/components/configurator/AudioSelector";
 import { LiveMapPreview } from "@/components/configurator/LiveMapPreview";
 import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getFirebaseClientAuth, googleProvider } from "@/lib/firebase-client";
@@ -146,6 +147,7 @@ export function Configurator({
   const [showIdentityGate, setShowIdentityGate] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [secretCode, setSecretCode] = useState("");
+  const [audioUrl, setAudioUrl] = useState("");
   const [title, setTitle] = useState(lang === "ar" ? "قصتنا" : lang === "en" ? "Our story" : "Notre histoire");
   const [message, setMessage] = useState(lang === "ar" ? "خريطة حيّة لنا." : lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
   const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1, lang)]);
@@ -321,6 +323,7 @@ export function Configurator({
         theme_style: theme,
         title,
         message,
+        audioUrl,
         secret_code: secretCode,
         points,
       }),
@@ -456,6 +459,8 @@ export function Configurator({
               ))}
             </select>
           </div>
+
+          <AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} />
 
           <div>
             <h2>{isArabic ? "الذكريات" : isEnglish ? "Memories" : "Souvenirs"}</h2>
