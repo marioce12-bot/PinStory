@@ -27,6 +27,7 @@
   },
   "plans": {
     "free": "Free Preview",
+    "mini": "Mini",
     "souvenir": "Souvenir",
     "eternal": "Eternal"
   },

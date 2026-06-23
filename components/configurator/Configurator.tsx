@@ -414,7 +414,7 @@ export function Configurator({
           <div className="form-field">
             <label>{isArabic ? "الخطة" : isEnglish ? "Plan" : "Formule"}</label>
             <div className="segmented-grid">
-              {(["free", "souvenir", "eternal"] as const).map((item) => (
+              {(["free", "mini", "souvenir", "eternal"] as const).map((item) => (
                 <button className={`segment-button ${plan === item ? "active" : ""}`} key={item} onClick={() => updatePlan(item)} type="button">
                   {dictionary.plans[item]}
                 </button>

@@ -11,8 +11,20 @@ export const PLAN_LIMITS = {
     durationDays: 14,
     themes: ["minimalist"],
   },
+  mini: {
+    price: 200,
+    maxPoints: 5,
+    media: true,
+    images: true,
+    videos: false,
+    qrCode: true,
+    customQrLogo: false,
+    slideshow: false,
+    durationDays: 30,
+    themes: ["minimalist", "pastel"],
+  },
   souvenir: {
-    price: 990,
+    price: 500,
     maxPoints: 10,
     media: true,
     images: true,
@@ -24,7 +36,7 @@ export const PLAN_LIMITS = {
     themes: ["minimalist", "pastel", "dark-luxe"],
   },
   eternal: {
-    price: 3990,
+    price: 3300,
     maxPoints: Number.POSITIVE_INFINITY,
     media: true,
     images: true,
@@ -41,7 +53,7 @@ export type Plan = keyof typeof PLAN_LIMITS;
 export type ThemeStyle = "minimalist" | "pastel" | "dark-luxe" | "premium-gold";
 
 export function isPlan(value: string): value is Plan {
-  return value === "free" || value === "souvenir" || value === "eternal";
+  return value === "free" || value === "mini" || value === "souvenir" || value === "eternal";
 }
 
 export function getPlanExpiry(plan: Plan, createdAt = new Date()) {

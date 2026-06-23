@@ -27,6 +27,7 @@
   },
   "plans": {
     "free": "Aperçu Gratuit",
+    "mini": "Mini",
     "souvenir": "Souvenir",
     "eternal": "Éternel"
   },

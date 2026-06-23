@@ -749,9 +749,12 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.steps-grid,
-.pricing-grid {
+.steps-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pricing-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .faq-grid {
@@ -884,7 +887,7 @@ button {
 
 .segmented-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.65rem;
 }
 

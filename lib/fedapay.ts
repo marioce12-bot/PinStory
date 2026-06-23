@@ -46,7 +46,12 @@ function getFedaPayBaseUrl() {
 }
 
 function getPlanAmount(plan: Exclude<Plan, "free">) {
-  const envKey = plan === "souvenir" ? "FEDAPAY_AMOUNT_SOUVENIR" : "FEDAPAY_AMOUNT_ETERNAL";
+  const envKey =
+    plan === "mini"
+      ? "FEDAPAY_AMOUNT_MINI"
+      : plan === "souvenir"
+        ? "FEDAPAY_AMOUNT_SOUVENIR"
+        : "FEDAPAY_AMOUNT_ETERNAL";
   const envAmount = Number(process.env[envKey]);
   if (Number.isFinite(envAmount) && envAmount > 0) return Math.round(envAmount);
   return PLAN_LIMITS[plan].price;
@@ -76,7 +81,7 @@ export async function createFedaPayCheckout(input: FedaPayCheckoutInput): Promis
   }
 
   const appUrl = input.appUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const currency = process.env.FEDAPAY_CURRENCY || "EUR";
+  const currency = process.env.FEDAPAY_CURRENCY || "USD";
   const baseUrl = getFedaPayBaseUrl();
   const amount = getPlanAmount(input.plan);
   const description = input.title
