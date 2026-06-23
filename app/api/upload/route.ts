@@ -11,6 +11,10 @@ type CloudinaryUpload = {
 
 type CloudinaryError = Error & {
   http_code?: number;
+  error?: {
+    message?: string;
+  };
+  code?: string | number;
 };
 
 type CloudinaryConfig = {
@@ -99,14 +103,23 @@ function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  const cloudinaryStatus = (error as CloudinaryError | undefined)?.http_code;
+  const cloudinaryError = error as CloudinaryError | undefined;
+  const cloudinaryStatus = cloudinaryError?.http_code;
   if (cloudinaryStatus === 401) {
     return "Cloudinary rejected the credentials. Check CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET in Vercel.";
   }
 
+  if (cloudinaryError?.error?.message) return cloudinaryError.error.message;
+  if (cloudinaryError?.message) return cloudinaryError.message;
+
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string") return error;
-  return "Unknown upload error";
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown upload error";
+  }
 }
 
 function getCloudinaryStatus(error: unknown) {
@@ -143,7 +156,41 @@ async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video"
 }
 
 export async function GET() {
-  return NextResponse.json(getCloudinaryDiagnostics());
+  const diagnostics = getCloudinaryDiagnostics();
+  const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
+
+  if (missing.length > 0) {
+    return NextResponse.json({
+      ...diagnostics,
+      authPing: {
+        ok: false,
+        skipped: true,
+        reason: "Cloudinary configuration is incomplete.",
+      },
+    });
+  }
+
+  try {
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+    const ping = await cloudinary.api.ping();
+
+    return NextResponse.json({
+      ...diagnostics,
+      authPing: {
+        ok: true,
+        status: ping?.status || "ok",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({
+      ...diagnostics,
+      authPing: {
+        ok: false,
+        status: getCloudinaryStatus(error),
+        error: getErrorMessage(error),
+      },
+    });
+  }
 }
 
 export async function POST(request: Request) {
@@ -188,11 +235,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("PinStory upload failed", error);
+    const status = getCloudinaryStatus(error);
     return NextResponse.json(
       {
         error: `Upload failed: ${getErrorMessage(error)}`,
+        status,
+        diagnostics: getCloudinaryDiagnostics(),
       },
-      { status: getCloudinaryStatus(error) },
+      { status },
     );
   }
 }
