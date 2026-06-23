@@ -1,11 +1,48 @@
 import type { Metadata } from "next";
 import { MapViewer } from "@/components/map/MapViewer";
 import { getDemoMap } from "@/lib/demo-map";
+import { getFirebaseDb } from "@/lib/firebase-admin";
 import { getDictionary } from "@/lib/i18n";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { MemoryMap } from "@/lib/types";
+import type { MemoryMap, MemoryPoint } from "@/lib/types";
 
 async function getMemoryMap(id: string): Promise<MemoryMap> {
+  const firebaseDb = getFirebaseDb();
+  if (firebaseDb) {
+    const snapshot = await firebaseDb.collection("maps").doc(id).get();
+    if (snapshot.exists) {
+      const data = snapshot.data() as Omit<MemoryMap, "points"> & { points?: MemoryPoint[] };
+
+      return {
+        id: data.id || id,
+        client_email: data.client_email || "",
+        lang: data.lang || "fr",
+        plan: data.plan || "free",
+        theme_style: data.theme_style || "minimalist",
+        title: data.title || "PinStory",
+        message: data.message || "",
+        created_at: data.created_at || new Date().toISOString(),
+        expires_at: data.expires_at || null,
+        payment_status: data.payment_status || "free",
+        qr_code_url: data.qr_code_url,
+        custom_qr_logo_url: data.custom_qr_logo_url,
+        points: (data.points || []).map((point, index) => ({
+          ...point,
+          id: point.id || `point-${index + 1}`,
+          order: point.order || index + 1,
+          title: point.title || point.place_name,
+          description: point.description || "",
+          place_name: point.place_name || point.location_query || point.title,
+          location_query: point.location_query || point.place_name || point.title,
+          longitude: Number(point.longitude),
+          latitude: Number(point.latitude),
+          media_url: point.media_url || undefined,
+          media_type: point.media_type || undefined,
+        })),
+      };
+    }
+  }
+
   const supabase = getSupabaseAdmin();
 
   if (!supabase) return getDemoMap(id);
