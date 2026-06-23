@@ -9,6 +9,12 @@ type CloudinaryUpload = {
   resource_type: string;
 };
 
+type CloudinaryUploadConfig = {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+};
+
 type CloudinaryError = Error & {
   http_code?: number;
   error?: {
@@ -128,44 +134,52 @@ function getCloudinaryStatus(error: unknown) {
   return 502;
 }
 
-async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video", folder?: string) {
-  return new Promise<CloudinaryUpload>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: resourceType,
-        ...(folder ? { folder } : {}),
-      },
-      (error, result) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+async function uploadToCloudinaryRest({
+  bytes,
+  resourceType,
+  mimeType,
+  fileName,
+  config,
+}: {
+  bytes: Buffer;
+  resourceType: "image" | "video";
+  mimeType: string;
+  fileName: string;
+  config: CloudinaryUploadConfig;
+}) {
+  const timestamp = Math.round(Date.now() / 1000).toString();
+  const signature = cloudinary.utils.api_sign_request({ timestamp }, config.apiSecret);
+  const formData = new FormData();
 
-        if (!result?.secure_url || !result.resource_type) {
-          reject(new Error("Cloudinary returned an incomplete upload response."));
-          return;
-        }
+  formData.append("file", new Blob([new Uint8Array(bytes)], { type: mimeType }), fileName);
+  formData.append("api_key", config.apiKey);
+  formData.append("timestamp", timestamp);
+  formData.append("signature", signature);
 
-        resolve({ secure_url: result.secure_url, resource_type: result.resource_type });
-      },
-    );
-
-    stream.on("error", reject);
-    stream.end(bytes);
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/${resourceType}/upload`, {
+    method: "POST",
+    body: formData,
   });
-}
+  const responseText = await response.text();
 
-async function uploadWithFolderFallback(bytes: Buffer, resourceType: "image" | "video") {
+  let payload: { secure_url?: string; resource_type?: string; error?: { message?: string } } = {};
   try {
-    return await uploadToCloudinary(bytes, resourceType, "pinstory");
-  } catch (error) {
-    const status = getCloudinaryStatus(error);
-
-    if (status !== 403) throw error;
-
-    console.warn("PinStory Cloudinary folder upload failed with 403. Retrying at cloud root.", error);
-    return uploadToCloudinary(bytes, resourceType);
+    payload = JSON.parse(responseText) as typeof payload;
+  } catch {
+    // Keep raw text below for diagnostics.
   }
+
+  if (!response.ok) {
+    throw new Error(
+      `Cloudinary upload failed (${response.status}): ${payload.error?.message || responseText || response.statusText}`,
+    );
+  }
+
+  if (!payload.secure_url || !payload.resource_type) {
+    throw new Error(`Cloudinary returned an incomplete upload response: ${responseText}`);
+  }
+
+  return { secure_url: payload.secure_url, resource_type: payload.resource_type } satisfies CloudinaryUpload;
 }
 
 export async function GET() {
@@ -240,7 +254,13 @@ export async function POST(request: Request) {
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
     const resourceType = file.type.startsWith("video/") ? "video" : "image";
     const bytes = Buffer.from(await file.arrayBuffer());
-    const upload = await uploadWithFolderFallback(bytes, resourceType);
+    const upload = await uploadToCloudinaryRest({
+      bytes,
+      resourceType,
+      mimeType: file.type || (resourceType === "image" ? "image/webp" : "video/mp4"),
+      fileName: file.name || `pinstory-upload.${resourceType === "image" ? "webp" : "mp4"}`,
+      config: { cloudName: cloudName!, apiKey: apiKey!, apiSecret: apiSecret! },
+    });
 
     return NextResponse.json({
       media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
