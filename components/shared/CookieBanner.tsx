@@ -9,7 +9,7 @@ const copy = {
   fr: {
     title: "PinStory respecte votre vie privée",
     description:
-      "Nous utilisons des cookies essentiels pour sécuriser vos paiements avec Stripe et améliorer votre expérience sur la carte.",
+      "Nous utilisons des cookies essentiels pour sécuriser vos paiements avec FedaPay et améliorer votre expérience sur la carte.",
     decline: "Refuser",
     accept: "Accepter",
     iconLabel: "Cookies",
@@ -17,14 +17,14 @@ const copy = {
   en: {
     title: "PinStory respects your privacy",
     description:
-      "We use essential cookies to secure Stripe payments and improve your experience on the interactive map.",
+      "We use essential cookies to secure FedaPay payments and improve your experience on the interactive map.",
     decline: "Decline",
     accept: "Accept",
     iconLabel: "Cookies",
   },
   ar: {
     title: "PinStory يحترم خصوصيتك",
-    description: "نحن نستخدم ملفات تعريف الارتباط الأساسية لتأمين مدفوعاتك عبر Stripe وتحسين تجربتك على الخريطة.",
+    description: "نحن نستخدم ملفات تعريف الارتباط الأساسية لتأمين مدفوعاتك عبر FedaPay وتحسين تجربتك على الخريطة.",
     decline: "رفض",
     accept: "قبول",
     iconLabel: "ملفات تعريف الارتباط",

@@ -1,7 +1,6 @@
 export const PLAN_LIMITS = {
   free: {
     price: 0,
-    stripePriceId: null,
     maxPoints: 3,
     media: true,
     images: true,
@@ -14,7 +13,6 @@ export const PLAN_LIMITS = {
   },
   souvenir: {
     price: 990,
-    stripePriceId: process.env.STRIPE_PRICE_SOUVENIR || null,
     maxPoints: 10,
     media: true,
     images: true,
@@ -27,7 +25,6 @@ export const PLAN_LIMITS = {
   },
   eternal: {
     price: 3990,
-    stripePriceId: process.env.STRIPE_PRICE_ETERNAL || null,
     maxPoints: Number.POSITIVE_INFINITY,
     media: true,
     images: true,

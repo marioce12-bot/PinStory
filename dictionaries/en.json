@@ -41,7 +41,7 @@
   "cta": {
     "start": "Create my memory",
     "continue": "Continue",
-    "checkout": "Confirm and pay",
+    "checkout": "Proceed to payment",
     "save": "Save"
   }
 }

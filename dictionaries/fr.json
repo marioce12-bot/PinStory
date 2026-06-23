@@ -41,7 +41,7 @@
   "cta": {
     "start": "Créer mon souvenir",
     "continue": "Continuer",
-    "checkout": "Valider et payer",
+    "checkout": "Procéder au paiement",
     "save": "Sauvegarder"
   }
 }

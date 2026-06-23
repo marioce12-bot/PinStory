@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createFedaPayCheckout } from "@/lib/fedapay";
 import { getFirebaseDb } from "@/lib/firebase-admin";
 import { getPlanExpiry } from "@/lib/plans";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -18,12 +19,13 @@ export async function POST(request: Request) {
 
   const data = payload as Record<string, unknown>;
   const id = createId();
+  const clientEmail = String(data.client_email || "");
   const createdAt = new Date();
   const expiresAt = getPlanExpiry(validation.plan, createdAt);
   const paymentStatus = validation.plan === "free" ? "free" : "pending";
   const mapRecord = {
     id,
-    client_email: String(data.client_email || ""),
+    client_email: clientEmail,
     lang: validation.lang,
     plan: validation.plan,
     theme_style: validation.theme,
@@ -91,8 +93,30 @@ export async function POST(request: Request) {
   }
 
   if (validation.plan !== "free") {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    return NextResponse.json({ id, checkoutUrl: `${appUrl}/${validation.lang}/checkout/success?mapId=${id}` });
+    const checkout = await createFedaPayCheckout({
+      mapId: id,
+      plan: validation.plan,
+      lang: validation.lang,
+      email: clientEmail,
+      title: mapRecord.title,
+    });
+
+    if (firebaseDb) {
+      await firebaseDb.collection("maps").doc(id).set(
+        {
+          fedapay_transaction_id: checkout.transactionId,
+          payment_provider: "fedapay",
+        },
+        { merge: true },
+      );
+    }
+
+    return NextResponse.json({
+      id,
+      checkoutUrl: checkout.checkoutUrl,
+      transactionId: checkout.transactionId,
+      provider: "fedapay",
+    });
   }
 
   return NextResponse.json({ id });
