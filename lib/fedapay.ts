@@ -7,6 +7,7 @@ export type FedaPayCheckoutInput = {
   lang: string;
   email: string;
   title?: string;
+  appUrl?: string;
 };
 
 export type FedaPayCheckout = {
@@ -74,7 +75,7 @@ export async function createFedaPayCheckout(input: FedaPayCheckoutInput): Promis
     throw new Error("FedaPay is not configured. Missing FEDAPAY_SECRET_KEY.");
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = input.appUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const currency = process.env.FEDAPAY_CURRENCY || "EUR";
   const baseUrl = getFedaPayBaseUrl();
   const amount = getPlanAmount(input.plan);

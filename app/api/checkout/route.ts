@@ -4,6 +4,7 @@ import { isPlan } from "@/lib/plans";
 
 export async function POST(request: Request) {
   try {
+    const appUrl = new URL(request.url).origin;
     const {
       plan,
       mapId,
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       lang,
       email,
       title,
+      appUrl,
     });
 
     return NextResponse.json({

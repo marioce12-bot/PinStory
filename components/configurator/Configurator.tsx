@@ -150,6 +150,13 @@ export function Configurator({
   const [audioUrl, setAudioUrl] = useState("");
   const [title, setTitle] = useState(lang === "ar" ? "قصتنا" : lang === "en" ? "Our story" : "Notre histoire");
   const [message, setMessage] = useState(lang === "ar" ? "خريطة حيّة لنا." : lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
+  const [finalMessage, setFinalMessage] = useState(
+    lang === "ar"
+      ? "شكراً لأنك عشت هذه الرحلة معنا. هذه الذكريات ستبقى دائماً قريبة من القلب."
+      : lang === "en"
+        ? "Thank you for reliving this journey with us. These memories will always stay close to our hearts."
+        : "Merci d’avoir revécu ce voyage avec nous. Ces souvenirs resteront toujours près du cœur.",
+  );
   const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1, lang)]);
   const [activePointId, setActivePointId] = useState(points[0].id);
   const [status, setStatus] = useState<string | null>(null);
@@ -323,6 +330,7 @@ export function Configurator({
         theme_style: theme,
         title,
         message,
+        finalMessage,
         audioUrl,
         secret_code: secretCode,
         points,
@@ -430,6 +438,17 @@ export function Configurator({
           <div className="form-field">
             <label htmlFor="message">Message</label>
             <textarea id="message" rows={3} value={message} onChange={(event) => setMessage(event.target.value)} />
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="final-message">{isArabic ? "رسالة النهاية" : isEnglish ? "Final message" : "Message final"}</label>
+            <textarea
+              id="final-message"
+              rows={4}
+              value={finalMessage}
+              onChange={(event) => setFinalMessage(event.target.value)}
+              placeholder={isArabic ? "اكتب رسالة ختامية تظهر في نهاية الرحلة..." : isEnglish ? "Write the closing message shown at the end..." : "Écrivez le message de conclusion affiché à la fin..."}
+            />
           </div>
 
           <div className="form-field">

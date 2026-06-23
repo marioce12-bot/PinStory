@@ -5,26 +5,24 @@ export type AudioTrack = {
   url: string;
 };
 
-const firebaseStorageBase = "https://firebasestorage.googleapis.com/v0/b/my-instants-74d3e.firebasestorage.app/o";
-
 export const audioCatalog: AudioTrack[] = [
   {
     id: "tiak_style",
     title: "Mélo Wavy (Style Tiakola)",
     genre: "Afro / Chill",
-    url: `${firebaseStorageBase}/audio%2Ffond-wavy.mp3?alt=media`,
+    url: process.env.NEXT_PUBLIC_AUDIO_TIAK_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
   },
   {
     id: "aya_style",
     title: "Acoustic Pop (Style Aya)",
     genre: "Zouk / Pop",
-    url: `${firebaseStorageBase}/audio%2Fsunset-chill.mp3?alt=media`,
+    url: process.env.NEXT_PUBLIC_AUDIO_AYA_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
   },
   {
     id: "niska_style",
     title: "Gros Banger (Style Niska)",
     genre: "Trap / Énergie",
-    url: `${firebaseStorageBase}/audio%2Fbanger.mp3?alt=media`,
+    url: process.env.NEXT_PUBLIC_AUDIO_NISKA_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
   },
 ];
 

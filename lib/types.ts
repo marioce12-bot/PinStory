@@ -23,6 +23,7 @@ export type MemoryMap = {
   theme_style: ThemeStyle;
   title: string;
   message: string;
+  finalMessage?: string;
   created_at: string;
   expires_at: string | null;
   payment_status: "pending" | "paid" | "failed" | "free";

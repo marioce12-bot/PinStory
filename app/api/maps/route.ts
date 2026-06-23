@@ -11,6 +11,7 @@ function createId() {
 
 export async function POST(request: Request) {
   const payload = await request.json();
+  const appUrl = new URL(request.url).origin;
   const validation = validateMapPayload(payload);
 
   if (!validation.ok) {
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     theme_style: validation.theme,
     title: String(data.title || "PinStory"),
     message: String(data.message || ""),
+    finalMessage: String(data.finalMessage || ""),
     created_at: createdAt.toISOString(),
     expires_at: expiresAt,
     payment_status: paymentStatus,
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
       theme_style: mapRecord.theme_style,
       title: mapRecord.title,
       message: mapRecord.message,
+      finalMessage: mapRecord.finalMessage,
       created_at: mapRecord.created_at,
       expires_at: mapRecord.expires_at,
       payment_status: mapRecord.payment_status,
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
       lang: validation.lang,
       email: clientEmail,
       title: mapRecord.title,
+      appUrl,
     });
 
     if (firebaseDb) {

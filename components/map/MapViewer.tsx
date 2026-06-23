@@ -1,8 +1,11 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { QRCodeCanvas } from "qrcode.react";
 import { BackgroundMusic } from "@/components/map/BackgroundMusic";
@@ -11,50 +14,74 @@ import { getMapboxStyle, PLAN_LIMITS } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+type StoryPhase = "locked" | "intro" | "flying" | "modal" | "final";
 
 function getDirectionsUrl(point: MemoryMap["points"][number]) {
   const destination = point.place_name || `${point.latitude},${point.longitude}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 }
 
-function popupHtml(point: MemoryMap["points"][number], lang: MemoryMap["lang"]) {
-  const title = escapeHtml(point.title || point.place_name);
-  const place = escapeHtml(point.place_name);
-  const description = escapeHtml(point.description || "");
-  const date = escapeHtml(point.date || "");
-  const mediaUrl = point.media_url ? escapeHtml(point.media_url) : "";
-  const directionsLabel = lang === "en" ? "Get Directions" : "S'y rendre";
-  const media = mediaUrl
-    ? `<div class="popup-media-wrapper">${
-        point.media_type === "video"
-          ? `<video src="${mediaUrl}" controls></video>`
-          : `<img src="${mediaUrl}" alt="${title}" />`
-      }</div>`
-    : `<div class="popup-media-wrapper"></div>`;
+function getCopy(lang: MemoryMap["lang"]) {
+  if (lang === "ar") {
+    return {
+      intro1: "استعد لرحلة صغيرة بين الذكريات...",
+      intro2: "اضغط لتكتشف القصة على الخريطة.",
+      start: "اكتشف الخريطة",
+      continue: "متابعة الرحلة",
+      finish: "إنهاء الرحلة",
+      copy: "نسخ الرابط",
+      copied: "تم نسخ الرابط",
+      directions: "اذهب إلى الذكرى",
+      downloadQr: "تحميل رمز QR",
+      privateAlbum: "ألبوم خاص",
+      enterCode: "أدخل الرمز السري لفتح هذا PinStory.",
+      codePlaceholder: "الرمز السري",
+      wrongCode: "الرمز السري غير صحيح.",
+      openAlbum: "فتح الألبوم",
+      memories: "الذكريات",
+      finalFallback: "شكراً لأنك عشت هذه الرحلة معنا. هذه الذكريات ستبقى دائماً قريبة من القلب.",
+    };
+  }
 
-  return `
-    <article class="popup-animated">
-      ${media}
-      <div class="popup-text-content">
-        <h3 class="popup-title">${title}</h3>
-        <p class="popup-date">${date}</p>
-        <p class="popup-place">${place}</p>
-        <p>${description}</p>
-        <a class="directions-link" href="${getDirectionsUrl(point)}" target="_blank" rel="noopener noreferrer">
-          ${directionsLabel}
-        </a>
-      </div>
-    </article>
-  `;
+  if (lang === "en") {
+    return {
+      intro1: "Get ready to relive this journey...",
+      intro2: "Tap to discover the story on the map.",
+      start: "Discover my map",
+      continue: "Continue the journey",
+      finish: "End the journey",
+      copy: "Copy link",
+      copied: "Link copied",
+      directions: "Get Directions",
+      downloadQr: "Download QR",
+      privateAlbum: "Private album",
+      enterCode: "Enter the secret code to open this PinStory.",
+      codePlaceholder: "Secret code",
+      wrongCode: "Incorrect secret code.",
+      openAlbum: "Open album",
+      memories: "Memories",
+      finalFallback: "Thank you for reliving this journey with us. These memories will always stay close to our hearts.",
+    };
+  }
+
+  return {
+    intro1: "Préparez-vous à revivre ce voyage...",
+    intro2: "Touchez l’écran pour découvrir l’histoire sur la carte.",
+    start: "Découvrir ma carte",
+    continue: "Continuer le voyage",
+    finish: "Terminer le voyage",
+    copy: "Copier le lien",
+    copied: "Lien copié",
+    directions: "S’y rendre",
+    downloadQr: "Télécharger le QR",
+    privateAlbum: "Album privé",
+    enterCode: "Entrez le code secret pour ouvrir ce PinStory.",
+    codePlaceholder: "Code secret",
+    wrongCode: "Code secret incorrect.",
+    openAlbum: "Ouvrir l’album",
+    memories: "Souvenirs",
+    finalFallback: "Merci d’avoir revécu ce voyage avec nous. Ces souvenirs resteront toujours près du cœur.",
+  };
 }
 
 export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dictionary }) {
@@ -62,17 +89,26 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
   const qrRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<HTMLElement[]>([]);
+  const flyTimeoutRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [phase, setPhase] = useState<StoryPhase>(map.secret_code ? "locked" : "intro");
   const [showQr, setShowQr] = useState(false);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [secretInput, setSecretInput] = useState("");
-  const [isUnlocked, setIsUnlocked] = useState(!map.secret_code);
   const [secretError, setSecretError] = useState<string | null>(null);
+  const [publicUrl, setPublicUrl] = useState(`/map/${map.id}`);
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const currentPoint = map.points[activeIndex] || map.points[0];
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app";
-  const publicUrl = `${appUrl}/map/${map.id}`;
   const canShowQr = PLAN_LIMITS[map.plan].qrCode;
+  const copy = useMemo(() => getCopy(map.lang), [map.lang]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setPublicUrl(`${window.location.origin}/map/${map.id}`);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [map.id]);
 
   useEffect(() => {
     if (!containerRef.current || !mapboxToken || mapRef.current || map.points.length === 0) return;
@@ -83,21 +119,21 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
       container: containerRef.current,
       style: getMapboxStyle(map.theme_style),
       center: [firstPoint.longitude, firstPoint.latitude],
-      zoom: 11,
+      zoom: 3,
+      pitch: 0,
     });
 
     markersRef.current = map.points.map((point, index) => {
       const markerElement = document.createElement("button");
       markerElement.type = "button";
-      markerElement.className = `custom-marker ${index === activeIndex ? "marker-active" : ""}`;
+      markerElement.className = "custom-marker cinematic-marker";
       markerElement.setAttribute("aria-label", point.title || point.place_name);
-      markerElement.addEventListener("click", () => setActiveIndex(index));
+      markerElement.addEventListener("click", () => {
+        setActiveIndex(index);
+        setPhase("modal");
+      });
 
-      new mapboxgl.Marker(markerElement)
-        .setLngLat([point.longitude, point.latitude])
-        .setPopup(new mapboxgl.Popup({ offset: 24 }).setHTML(popupHtml(point, map.lang)))
-        .addTo(instance);
-
+      new mapboxgl.Marker(markerElement).setLngLat([point.longitude, point.latitude]).addTo(instance);
       return markerElement;
     });
 
@@ -105,34 +141,77 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
     mapRef.current = instance;
 
     return () => {
+      if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
       instance.remove();
       mapRef.current = null;
       markersRef.current = [];
     };
-  }, [activeIndex, map.lang, map.points, map.theme_style, mapboxToken]);
+  }, [map.points, map.theme_style, mapboxToken]);
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
-      marker.classList.toggle("marker-active", index === activeIndex);
+      marker.classList.toggle("marker-active", index === activeIndex && phase === "modal");
     });
+  }, [activeIndex, phase]);
 
-    if (!mapRef.current || !currentPoint) return;
-    mapRef.current.flyTo({ center: [currentPoint.longitude, currentPoint.latitude], zoom: 12, essential: true });
-  }, [activeIndex, currentPoint]);
+  function flyToMemory(index: number) {
+    const point = map.points[index];
+    if (!point) return;
 
-  function nextPoint() {
-    if (map.points.length === 0) return;
-    setActiveIndex((index) => (index + 1) % map.points.length);
+    setActiveIndex(index);
+    setPhase("flying");
+
+    if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
+
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [point.longitude, point.latitude],
+        zoom: 16,
+        duration: 4000,
+        pitch: 45,
+        bearing: index % 2 === 0 ? 18 : -18,
+        essential: true,
+      });
+      flyTimeoutRef.current = window.setTimeout(() => setPhase("modal"), 4200);
+    } else {
+      flyTimeoutRef.current = window.setTimeout(() => setPhase("modal"), 700);
+    }
   }
 
-  function previousPoint() {
-    if (map.points.length === 0) return;
-    setActiveIndex((index) => (index - 1 + map.points.length) % map.points.length);
+  function startStory() {
+    flyToMemory(0);
+  }
+
+  function continueJourney() {
+    const nextIndex = activeIndex + 1;
+    if (nextIndex < map.points.length) {
+      setPhase("flying");
+      if (mapRef.current && currentPoint) {
+        mapRef.current.flyTo({
+          center: [currentPoint.longitude, currentPoint.latitude],
+          zoom: 7,
+          duration: 1200,
+          pitch: 15,
+          essential: true,
+        });
+        window.setTimeout(() => flyToMemory(nextIndex), 1100);
+      } else {
+        flyToMemory(nextIndex);
+      }
+      return;
+    }
+
+    setPhase("final");
+    if (mapRef.current && map.points.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      map.points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
+      mapRef.current.fitBounds(bounds, { padding: 90, duration: 3500, pitch: 0, bearing: 0 });
+    }
   }
 
   async function copyLink() {
     await navigator.clipboard.writeText(publicUrl);
-    setCopyStatus(map.lang === "en" ? "Link copied" : "Lien copié");
+    setCopyStatus(copy.copied);
     window.setTimeout(() => setCopyStatus(null), 1800);
   }
 
@@ -148,33 +227,33 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
 
   function unlockAlbum() {
     if (!map.secret_code || secretInput.trim() === map.secret_code) {
-      setIsUnlocked(true);
+      setPhase("intro");
       setSecretError(null);
       return;
     }
 
-    setSecretError(map.lang === "en" ? "Incorrect secret code." : "Code secret incorrect.");
+    setSecretError(copy.wrongCode);
   }
 
-  if (!isUnlocked) {
+  if (phase === "locked") {
     return (
       <main className="secret-gate-page">
         <div className="secret-gate-card">
           <BrandLogo href={`/${map.lang}`} />
-          <p className="popup-date">{map.lang === "en" ? "Private album" : "Album privé"}</p>
+          <p className="popup-date">{copy.privateAlbum}</p>
           <h1>{map.title}</h1>
-          <p>{map.lang === "en" ? "Enter the secret code to open this PinStory." : "Entrez le code secret pour ouvrir ce PinStory."}</p>
+          <p>{copy.enterCode}</p>
           <input
             value={secretInput}
             onChange={(event) => setSecretInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") unlockAlbum();
             }}
-            placeholder={map.lang === "en" ? "Secret code" : "Code secret"}
+            placeholder={copy.codePlaceholder}
           />
           {secretError ? <p className="secret-error">{secretError}</p> : null}
           <button className="btn-cta" type="button" onClick={unlockAlbum}>
-            {map.lang === "en" ? "Open album" : "Ouvrir l’album"}
+            {copy.openAlbum}
           </button>
         </div>
       </main>
@@ -182,7 +261,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
   }
 
   return (
-    <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+    <main className="cinematic-map-shell">
       <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
       {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
 
@@ -190,106 +269,92 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
         <div className="map-fallback-markers" aria-hidden="true">
           {map.points.slice(0, 8).map((point, index) => (
             <button
-              className={`fallback-marker ${index === activeIndex ? "marker-active" : ""}`}
+              className={`fallback-marker ${index === activeIndex && phase === "modal" ? "marker-active" : ""}`}
               key={point.id}
               style={{ left: `${18 + ((index * 19) % 62)}%`, top: `${22 + ((index * 17) % 56)}%` }}
               type="button"
-              onClick={() => setActiveIndex(index)}
+              onClick={() => {
+                setActiveIndex(index);
+                setPhase("modal");
+              }}
             />
           ))}
         </div>
       ) : null}
 
-      <div className="map-ui-overlay">
-        <header className="ui-card-header map-header-card">
-          <div>
-            <BrandLogo href={`/${map.lang}`} />
-            <h1 className="popup-title">{map.title}</h1>
-            <p>{map.message}</p>
-          </div>
-          <div className="map-link-actions">
-            <button className="btn-secondary" type="button" onClick={copyLink}>
-              {map.lang === "en" ? "Copy link" : "Copier le lien"}
-            </button>
-            {canShowQr ? (
-              <button className="btn-secondary" type="button" onClick={() => setShowQr((value) => !value)}>
-                {dictionary.map.open_qr}
-              </button>
-            ) : null}
-            {copyStatus ? <span className="copy-status">{copyStatus}</span> : null}
-          </div>
-        </header>
+      <div className="cinematic-topbar">
+        <BrandLogo href={`/${map.lang}`} />
+        <div className="map-link-actions">
+          <button className="btn-secondary" type="button" onClick={copyLink}>{copy.copy}</button>
+          {canShowQr ? <button className="btn-secondary" type="button" onClick={() => setShowQr((value) => !value)}>{dictionary.map.open_qr}</button> : null}
+          {copyStatus ? <span className="copy-status">{copyStatus}</span> : null}
+        </div>
+      </div>
 
-        <section className="memory-dock" aria-label={map.lang === "en" ? "Memories" : "Souvenirs"}>
-          {map.points.map((point, index) => (
-            <button
-              className={`memory-dock-card ${index === activeIndex ? "active" : ""}`}
-              key={point.id}
-              type="button"
-              onClick={() => setActiveIndex(index)}
-            >
-              {point.media_url ? (
-                point.media_type === "video" ? (
-                  <video src={point.media_url} muted playsInline />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={point.media_url} alt={point.title || point.place_name} />
-                )
-              ) : (
-                <span className="memory-placeholder" />
-              )}
-              <span>
-                <strong>{point.title || point.place_name}</strong>
-                <small>{point.place_name}</small>
-              </span>
-            </button>
-          ))}
-        </section>
+      <AnimatePresence>
+        {phase === "intro" ? (
+          <motion.section className="cinematic-intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>{copy.intro1}</motion.p>
+            <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>{map.title}</motion.h1>
+            <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.25 }}>{copy.intro2}</motion.p>
+            <motion.button className="btn-cta" type="button" onClick={startStory} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.7 }}>
+              {copy.start}
+            </motion.button>
+          </motion.section>
+        ) : null}
 
-        <section className="ui-card-controls" aria-label="Map controls">
-          <div className="active-memory-summary">
-            {currentPoint?.media_url ? (
-              <div className="active-memory-media">
-                {currentPoint.media_type === "video" ? (
-                  <video src={currentPoint.media_url} controls />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={currentPoint.media_url} alt={currentPoint.title || currentPoint.place_name} />
-                )}
+        {phase === "flying" ? (
+          <motion.div className="cinematic-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
+            {currentPoint?.place_name}
+          </motion.div>
+        ) : null}
+
+        {phase === "modal" && currentPoint ? (
+          <motion.section className="cinematic-memory-modal" initial={{ opacity: 0, y: 36, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }}>
+            {currentPoint.media_url ? (
+              <div className="cinematic-memory-media">
+                {currentPoint.media_type === "video" ? <video src={currentPoint.media_url} controls /> : <img src={currentPoint.media_url} alt={currentPoint.title || currentPoint.place_name} />}
               </div>
             ) : null}
-            <div>
-              <strong>{currentPoint?.title}</strong>
-              <p className="popup-date">{currentPoint?.date}</p>
-              <p className="popup-place">{currentPoint?.place_name}</p>
-              <p>{currentPoint?.description}</p>
+            <p className="popup-date">{currentPoint.date}</p>
+            <h2>{currentPoint.title || currentPoint.place_name}</h2>
+            <p className="popup-place">{currentPoint.place_name}</p>
+            <p>{currentPoint.description}</p>
+            <div className="cinematic-modal-actions">
+              <a className="btn-secondary" href={getDirectionsUrl(currentPoint)} target="_blank" rel="noopener noreferrer">{copy.directions}</a>
+              <button className="btn-cta" type="button" onClick={continueJourney}>{activeIndex + 1 >= map.points.length ? copy.finish : copy.continue}</button>
             </div>
-          </div>
+          </motion.section>
+        ) : null}
 
-          <div className="map-control-buttons">
-            <button className="btn-secondary" type="button" onClick={previousPoint}>
-              {dictionary.map.previous_point}
-            </button>
-            <button className="btn-cta" type="button" onClick={nextPoint}>
-              {PLAN_LIMITS[map.plan].slideshow ? dictionary.map.mode_diaporama : dictionary.map.next_point}
-            </button>
-            {currentPoint ? (
-              <a className="btn-secondary directions-button" href={getDirectionsUrl(currentPoint)} target="_blank" rel="noopener noreferrer">
-                {map.lang === "en" ? "Get Directions" : "S'y rendre"}
-              </a>
-            ) : null}
-          </div>
-
-          {showQr && canShowQr ? (
-            <div className="qr-panel" ref={qrRef}>
-              <QRCodeCanvas value={publicUrl} size={220} level="H" includeMargin />
-              <button className="btn-secondary" type="button" onClick={downloadQrCode}>
-                {map.lang === "en" ? "Download QR" : "Télécharger le QR"}
-              </button>
+        {phase === "final" ? (
+          <motion.section className="cinematic-final" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="cinematic-final-scroll">
+              <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
-          ) : null}
-        </section>
-      </div>
+            <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.start}</button>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
+
+      <section className="memory-dock cinematic-dock" aria-label={copy.memories}>
+        {map.points.map((point, index) => (
+          <button className={`memory-dock-card ${index === activeIndex ? "active" : ""}`} key={point.id} type="button" onClick={() => flyToMemory(index)}>
+            {point.media_url ? point.media_type === "video" ? <video src={point.media_url} muted playsInline /> : <img src={point.media_url} alt={point.title || point.place_name} /> : <span className="memory-placeholder" />}
+            <span>
+              <strong>{point.title || point.place_name}</strong>
+              <small>{point.place_name}</small>
+            </span>
+          </button>
+        ))}
+      </section>
+
+      {showQr && canShowQr ? (
+        <div className="qr-panel cinematic-qr-panel" ref={qrRef}>
+          <QRCodeCanvas value={publicUrl} size={220} level="H" includeMargin />
+          <button className="btn-secondary" type="button" onClick={downloadQrCode}>{copy.downloadQr}</button>
+        </div>
+      ) : null}
     </main>
   );
 }
