@@ -499,6 +499,23 @@ button {
   color: var(--text-main);
 }
 
+.form-field input[type="file"] {
+  border-style: dashed;
+  background: rgba(0, 234, 154, 0.05);
+}
+
+.field-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.place-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+}
+
 .segmented-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -533,10 +550,33 @@ button {
   box-shadow: var(--shadow-md);
 }
 
+.poi-card-item.active {
+  border-color: var(--accent-cta);
+  box-shadow: 0 12px 32px rgba(0, 234, 154, 0.14);
+}
+
 .poi-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.85rem;
+}
+
+.media-preview-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #11141a;
+  box-shadow: var(--shadow-sm);
+}
+
+.media-preview-card img,
+.media-preview-card video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  object-fit: cover;
 }
 
 .preview-panel {
@@ -558,6 +598,7 @@ button {
     radial-gradient(circle at 70% 45%, rgba(255, 183, 3, 0.55) 0 0.55rem, transparent 0.6rem),
     radial-gradient(circle at 48% 72%, rgba(17, 20, 26, 0.55) 0 0.5rem, transparent 0.55rem),
     linear-gradient(135deg, #e7f1ee, #fbf2e4);
+  cursor: crosshair;
 }
 
 .live-map-preview.dark-luxe {
@@ -691,6 +732,28 @@ button {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-bottom: 0.5rem;
+}
+
+.popup-place {
+  color: var(--text-main);
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.directions-link,
+.directions-button {
+  margin-top: 0.85rem;
+}
+
+.directions-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  background: var(--accent-cta);
+  color: #000;
+  font-weight: 800;
 }
 
 @keyframes fadeInUp {
@@ -847,6 +910,10 @@ button {
   }
 
   .segmented-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .place-search-row {
     grid-template-columns: 1fr;
   }
 

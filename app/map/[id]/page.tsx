@@ -38,6 +38,8 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
       title: point.title,
       date: point.date || undefined,
       description: point.description || "",
+      place_name: point.place_name || point.location_query || point.title,
+      location_query: point.location_query || point.place_name || point.title,
       longitude: point.longitude,
       latitude: point.latitude,
       media_url: point.media_url || undefined,

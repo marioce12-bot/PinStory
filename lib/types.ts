@@ -7,6 +7,8 @@ export type MemoryPoint = {
   title: string;
   date?: string;
   description: string;
+  place_name: string;
+  location_query?: string;
   longitude: number;
   latitude: number;
   media_url?: string;

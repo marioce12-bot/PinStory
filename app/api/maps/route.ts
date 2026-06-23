@@ -45,6 +45,8 @@ export async function POST(request: Request) {
         title: point.title,
         date: point.date || null,
         description: point.description,
+        place_name: point.place_name,
+        location_query: point.location_query || point.place_name,
         longitude: point.longitude,
         latitude: point.latitude,
         media_url: point.media_url || null,

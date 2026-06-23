@@ -10,6 +10,11 @@ import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
 
+function getDirectionsUrl(point: MemoryMap["points"][number]) {
+  const destination = point.place_name || `${point.latitude},${point.longitude}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
+
 function popupHtml(point: MemoryMap["points"][number]) {
   const media = point.media_url
     ? `<div class="popup-media-wrapper">${
@@ -25,7 +30,11 @@ function popupHtml(point: MemoryMap["points"][number]) {
       <div class="popup-text-content">
         <h3 class="popup-title">${point.title}</h3>
         <p class="popup-date">${point.date || ""}</p>
+        <p class="popup-place">${point.place_name}</p>
         <p>${point.description}</p>
+        <a class="directions-link" href="${getDirectionsUrl(point)}" target="_blank" rel="noopener noreferrer">
+          Get Directions
+        </a>
       </div>
     </article>
   `;
@@ -102,6 +111,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
           <div>
             <strong>{currentPoint?.title}</strong>
             <p className="popup-date">{currentPoint?.date}</p>
+            <p className="popup-place">{currentPoint?.place_name}</p>
           </div>
           <button className="btn-secondary" type="button" onClick={previousPoint}>
             {dictionary.map.previous_point}
@@ -113,6 +123,11 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
             <button className="btn-secondary" type="button" onClick={() => setShowQr((value) => !value)}>
               {dictionary.map.open_qr}
             </button>
+          ) : null}
+          {currentPoint ? (
+            <a className="btn-secondary directions-button" href={getDirectionsUrl(currentPoint)} target="_blank" rel="noopener noreferrer">
+              {map.lang === "en" ? "Get Directions" : "S'y rendre"}
+            </a>
           ) : null}
           {showQr ? (
             <div style={{ padding: "0.75rem", background: "white", borderRadius: "var(--radius-md)" }}>

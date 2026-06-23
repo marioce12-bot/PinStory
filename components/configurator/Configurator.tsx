@@ -1,23 +1,31 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { LiveMapPreview } from "@/components/configurator/LiveMapPreview";
 import type { Locale } from "@/lib/i18n";
 import { PLAN_LIMITS, type Plan, type ThemeStyle } from "@/lib/plans";
 import type { MemoryPoint } from "@/lib/types";
-import { LiveMapPreview } from "@/components/configurator/LiveMapPreview";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
 
-const defaultPoint = (order: number): MemoryPoint => ({
+const defaultPoint = (order: number, lang: Locale): MemoryPoint => ({
   id: crypto.randomUUID(),
   order,
-  title: order === 1 ? "Notre rencontre" : `Souvenir ${order}`,
+  title: order === 1 ? (lang === "en" ? "The first memory" : "Le premier souvenir") : `${lang === "en" ? "Memory" : "Souvenir"} ${order}`,
   date: "2024-05-12",
-  description: "Sous la pluie battante près de la fontaine.",
-  longitude: 2.3522 + order * 0.01,
-  latitude: 48.8566 + order * 0.01,
+  description: lang === "en" ? "A short sentence about this moment." : "Une petite phrase sur ce moment.",
+  place_name: order === 1 ? "Tour Eiffel, Paris" : "Paris, France",
+  location_query: order === 1 ? "Tour Eiffel, Paris" : "Paris, France",
+  longitude: 2.2945 + order * 0.01,
+  latitude: 48.8584 + order * 0.01,
 });
+
+type GeocodingFeature = {
+  place_name?: string;
+  center?: [number, number];
+};
 
 export function Configurator({
   lang,
@@ -36,39 +44,141 @@ export function Configurator({
   const [email, setEmail] = useState("");
   const [title, setTitle] = useState(lang === "en" ? "Our story" : "Notre histoire");
   const [message, setMessage] = useState(lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
-  const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1), defaultPoint(2)]);
+  const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1, lang)]);
+  const [activePointId, setActivePointId] = useState(points[0].id);
   const [status, setStatus] = useState<string | null>(null);
+  const [uploadingPointId, setUploadingPointId] = useState<string | null>(null);
 
   const limits = PLAN_LIMITS[plan];
   const availableThemes = limits.themes as readonly ThemeStyle[];
+  const activePoint = points.find((point) => point.id === activePointId) || points[0];
 
   function updatePlan(nextPlan: Plan) {
     setPlan(nextPlan);
     const nextThemes = PLAN_LIMITS[nextPlan].themes as readonly ThemeStyle[];
     if (!nextThemes.includes(theme)) setTheme(nextThemes[0]);
-    setPoints((current) => current.slice(0, PLAN_LIMITS[nextPlan].maxPoints));
-  }
-
-  function updatePoint(id: string, field: keyof MemoryPoint, value: string) {
     setPoints((current) =>
-      current.map((point) =>
-        point.id === id
-          ? {
+      current.slice(0, PLAN_LIMITS[nextPlan].maxPoints).map((point) =>
+        PLAN_LIMITS[nextPlan].media
+          ? point
+          : {
               ...point,
-              [field]: field === "longitude" || field === "latitude" ? Number(value) : value,
-            }
-          : point,
+              media_url: undefined,
+              media_type: undefined,
+            },
       ),
     );
   }
 
+  function updatePoint(id: string, patch: Partial<MemoryPoint>) {
+    setPoints((current) => current.map((point) => (point.id === id ? { ...point, ...patch } : point)));
+  }
+
   function addPoint() {
     if (points.length >= limits.maxPoints) return;
-    setPoints((current) => [...current, defaultPoint(current.length + 1)]);
+    const nextPoint = defaultPoint(points.length + 1, lang);
+    setPoints((current) => [...current, nextPoint]);
+    setActivePointId(nextPoint.id);
   }
 
   function removePoint(id: string) {
-    setPoints((current) => current.filter((point) => point.id !== id).map((point, index) => ({ ...point, order: index + 1 })));
+    setPoints((current) => {
+      const nextPoints = current.filter((point) => point.id !== id).map((point, index) => ({ ...point, order: index + 1 }));
+      if (!nextPoints.some((point) => point.id === activePointId)) setActivePointId(nextPoints[0]?.id || "");
+      return nextPoints;
+    });
+  }
+
+  async function searchPlace(point: MemoryPoint) {
+    setStatus(null);
+    const query = point.location_query?.trim() || point.place_name.trim();
+    if (!query) return;
+
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) {
+      updatePoint(point.id, { place_name: query, location_query: query });
+      setStatus(lang === "en" ? "Mapbox is not configured yet. The place text was saved." : "Mapbox n’est pas encore configuré. Le lieu saisi a été sauvegardé.");
+      return;
+    }
+
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=${memoryLang}&limit=1`,
+    );
+    const result = (await response.json()) as { features?: GeocodingFeature[] };
+    const feature = result.features?.[0];
+
+    if (!feature?.center) {
+      setStatus(lang === "en" ? "No place found. Try a city, address or landmark." : "Aucun lieu trouvé. Essayez une ville, une adresse ou un monument.");
+      return;
+    }
+
+    updatePoint(point.id, {
+      place_name: feature.place_name || query,
+      location_query: query,
+      longitude: feature.center[0],
+      latitude: feature.center[1],
+    });
+  }
+
+  function selectCurrentPosition(point: MemoryPoint) {
+    setStatus(null);
+
+    if (!navigator.geolocation) {
+      setStatus(lang === "en" ? "Geolocation is not available on this device." : "La géolocalisation n’est pas disponible sur cet appareil.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        updatePoint(point.id, {
+          place_name: lang === "en" ? "Current position" : "Position actuelle",
+          location_query: lang === "en" ? "Current position" : "Position actuelle",
+          longitude: Number(position.coords.longitude.toFixed(5)),
+          latitude: Number(position.coords.latitude.toFixed(5)),
+        });
+      },
+      () => setStatus(lang === "en" ? "Unable to access your position." : "Impossible d’accéder à votre position."),
+    );
+  }
+
+  function pickLocationFromPreview(longitude: number, latitude: number, label: string) {
+    if (!activePoint) return;
+    updatePoint(activePoint.id, {
+      place_name: lang === "en" ? "Selected on the map" : label,
+      location_query: lang === "en" ? "Selected on the map" : label,
+      longitude,
+      latitude,
+    });
+  }
+
+  async function uploadMedia(point: MemoryPoint, file: File | undefined) {
+    if (!file) return;
+    if (!limits.media) {
+      setStatus(lang === "en" ? "Media is available from the Souvenir plan." : "Les médias sont disponibles à partir de la formule Souvenir.");
+      return;
+    }
+    if (file.type.startsWith("video/") && !limits.videos) {
+      setStatus(lang === "en" ? "Videos require the Eternal plan." : "Les vidéos nécessitent la formule Éternel.");
+      return;
+    }
+
+    setUploadingPointId(point.id);
+    setStatus(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("plan", plan);
+
+    const response = await fetch("/api/upload", { method: "POST", body: formData });
+    const result = (await response.json()) as { media_url?: string; media_type?: "image" | "video"; error?: string };
+    setUploadingPointId(null);
+
+    if (!response.ok || !result.media_url) {
+      setStatus(result.error || (lang === "en" ? "Upload failed." : "L’upload a échoué."));
+      return;
+    }
+
+    updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
   }
 
   async function submit() {
@@ -160,49 +270,97 @@ export function Configurator({
           </div>
 
           <div>
-            <h2>{lang === "en" ? "Memory points" : "Points souvenirs"}</h2>
+            <h2>{lang === "en" ? "Memories" : "Souvenirs"}</h2>
             <p className="section-copy" style={{ marginBottom: "1rem" }}>
-              {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {lang === "en" ? "points used" : "points utilisés"}
+              {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {lang === "en" ? "memories used" : "souvenirs utilisés"}
             </p>
             {points.map((point) => (
-              <article className="poi-card-item" key={point.id}>
+              <article className={`poi-card-item ${activePointId === point.id ? "active" : ""}`} key={point.id} onFocus={() => setActivePointId(point.id)}>
                 <div className="form-stack">
+                  <button className="segment-button" type="button" onClick={() => setActivePointId(point.id)}>
+                    {lang === "en" ? "Edit this memory" : "Modifier ce souvenir"} #{point.order}
+                  </button>
+
+                  <div className="form-field">
+                    <label>{lang === "en" ? "Photo or video" : "Photo ou vidéo"}</label>
+                    {point.media_url ? (
+                      <div className="media-preview-card">
+                        {point.media_type === "video" ? (
+                          <video src={point.media_url} controls />
+                        ) : (
+                          <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />
+                        )}
+                      </div>
+                    ) : null}
+                    <input type="file" accept={limits.videos ? "image/*,video/*" : "image/*"} disabled={!limits.media} onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
+                    <small className="field-hint">
+                      {limits.media
+                        ? uploadingPointId === point.id
+                          ? lang === "en"
+                            ? "Uploading..."
+                            : "Upload en cours..."
+                          : lang === "en"
+                            ? "Upload one image, or a video with the Eternal plan."
+                            : "Ajoutez une image, ou une vidéo avec la formule Éternel."
+                        : lang === "en"
+                          ? "Media is disabled on the Free preview."
+                          : "Les médias sont désactivés sur l’aperçu gratuit."}
+                    </small>
+                  </div>
+
+                  <div className="form-field">
+                    <label>{lang === "en" ? "Place" : "Lieu"}</label>
+                    <div className="place-search-row">
+                      <input
+                        value={point.location_query || point.place_name}
+                        onChange={(event) => updatePoint(point.id, { location_query: event.target.value, place_name: event.target.value })}
+                        placeholder={lang === "en" ? "Eiffel Tower, Paris, hotel name..." : "Tour Eiffel, Paris, nom d'hôtel..."}
+                      />
+                      <button className="btn-secondary" type="button" onClick={() => searchPlace(point)}>
+                        {lang === "en" ? "Find" : "Trouver"}
+                      </button>
+                    </div>
+                    <small className="field-hint">
+                      {lang === "en"
+                        ? "No coordinates to type. Search, click the preview map, or use your current position."
+                        : "Aucune coordonnée à saisir. Cherchez, cliquez sur l’aperçu ou utilisez votre position."}
+                    </small>
+                  </div>
+
+                  <div className="poi-actions">
+                    <button className="btn-secondary" type="button" onClick={() => selectCurrentPosition(point)}>
+                      {lang === "en" ? "Use my position" : "Utiliser ma position"}
+                    </button>
+                    <button className="btn-secondary" type="button" onClick={() => removePoint(point.id)} disabled={points.length === 1}>
+                      {lang === "en" ? "Remove" : "Retirer"}
+                    </button>
+                  </div>
+
                   <div className="form-field">
                     <label>{lang === "en" ? "Title" : "Titre"}</label>
-                    <input value={point.title} onChange={(event) => updatePoint(point.id, "title", event.target.value)} />
+                    <input value={point.title} onChange={(event) => updatePoint(point.id, { title: event.target.value })} />
                   </div>
                   <div className="form-field">
                     <label>Date</label>
-                    <input type="date" value={point.date || ""} onChange={(event) => updatePoint(point.id, "date", event.target.value)} />
+                    <input type="date" value={point.date || ""} onChange={(event) => updatePoint(point.id, { date: event.target.value })} />
                   </div>
                   <div className="form-field">
                     <label>Description</label>
-                    <textarea rows={2} value={point.description} onChange={(event) => updatePoint(point.id, "description", event.target.value)} />
+                    <textarea rows={2} value={point.description} onChange={(event) => updatePoint(point.id, { description: event.target.value })} />
                   </div>
-                  <div className="segmented-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                    <div className="form-field">
-                      <label>Longitude</label>
-                      <input type="number" step="0.0001" value={point.longitude} onChange={(event) => updatePoint(point.id, "longitude", event.target.value)} />
-                    </div>
-                    <div className="form-field">
-                      <label>Latitude</label>
-                      <input type="number" step="0.0001" value={point.latitude} onChange={(event) => updatePoint(point.id, "latitude", event.target.value)} />
-                    </div>
-                  </div>
-                </div>
-                <div className="poi-actions">
-                  <button className="btn-secondary" type="button" onClick={() => removePoint(point.id)} disabled={points.length === 1}>
-                    {lang === "en" ? "Remove" : "Retirer"}
-                  </button>
                 </div>
               </article>
             ))}
             <button className="btn-secondary" type="button" onClick={addPoint} disabled={points.length >= limits.maxPoints}>
-              {lang === "en" ? "Add a point" : "Ajouter un point"}
+              {lang === "en" ? "Add a memory" : "Ajouter un souvenir"}
             </button>
           </div>
 
-          {status ? <p role="alert" className="section-copy">{status}</p> : null}
+          {status ? (
+            <p role="alert" className="section-copy">
+              {status}
+            </p>
+          ) : null}
           <button className="btn-cta" type="button" onClick={submit} disabled={isPending || !email || !title || points.length === 0}>
             {plan === "free" ? dictionary.cta.save : dictionary.cta.checkout}
           </button>
@@ -210,7 +368,7 @@ export function Configurator({
       </section>
 
       <aside className="configurator-preview" aria-label={dictionary.navigation.preview}>
-        <LiveMapPreview title={title} message={message} points={points} theme={theme} />
+        <LiveMapPreview title={title} message={message} points={points} theme={theme} onPickLocation={pickLocationFromPreview} />
       </aside>
     </main>
   );

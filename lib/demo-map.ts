@@ -26,8 +26,12 @@ export function getDemoMap(id: string, lang: Locale = "fr"): MemoryMap {
         description: isEnglish
           ? "A tiny table, heavy rain, and the start of the story."
           : "Une petite table, une pluie battante, et le début de l'histoire.",
+        place_name: "Paris, France",
+        location_query: "Paris, France",
         longitude: 2.3522,
         latitude: 48.8566,
+        media_url: "/images/couple-keepsake.svg",
+        media_type: "image",
       },
       {
         id: "p2",
@@ -37,8 +41,12 @@ export function getDemoMap(id: string, lang: Locale = "fr"): MemoryMap {
         description: isEnglish
           ? "The city lights became our private constellation."
           : "Les lumières de la ville sont devenues notre constellation privée.",
+        place_name: "Tour Eiffel, Paris",
+        location_query: "Tour Eiffel, Paris",
         longitude: 2.2945,
         latitude: 48.8584,
+        media_url: "/images/memory-map-preview.svg",
+        media_type: "image",
       },
     ],
   };

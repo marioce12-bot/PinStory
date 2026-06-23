@@ -24,8 +24,12 @@ export function validateMapPayload(payload: unknown) {
   }
 
   for (const point of points) {
-    if (!point.title || typeof point.longitude !== "number" || typeof point.latitude !== "number") {
-      return { ok: false as const, error: "Every point needs a title and coordinates." };
+    if (!point.place_name || typeof point.longitude !== "number" || typeof point.latitude !== "number") {
+      return { ok: false as const, error: "Every memory needs a place." };
+    }
+
+    if (plan !== "free" && !point.media_url) {
+      return { ok: false as const, error: "A photo or video is required for each paid memory." };
     }
 
     if (point.media_type && !PLAN_LIMITS[plan].media) {
