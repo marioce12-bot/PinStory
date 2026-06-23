@@ -139,7 +139,7 @@ export function Configurator({
   const isEnglish = lang === "en";
   const [isPending, startTransition] = useTransition();
   const [plan, setPlan] = useState<Plan>(initialPlan);
-  const [memoryLang, setMemoryLang] = useState<Locale>(lang);
+  const memoryLang: Locale = lang;
   const [theme, setTheme] = useState<ThemeStyle>(PLAN_LIMITS[initialPlan].themes[0] as ThemeStyle);
   const [email, setEmail] = useState("");
   const [creatorEmail, setCreatorEmail] = useState("");
@@ -384,17 +384,6 @@ export function Configurator({
           </div>
 
           <div className="form-field">
-            <label>{isArabic ? "لغة الخريطة النهائية" : isEnglish ? "Final map language" : "Langue du souvenir"}</label>
-            <div className="segmented-grid">
-              {(["fr", "en", "ar"] as const).map((item) => (
-                <button className={`segment-button ${memoryLang === item ? "active" : ""}`} key={item} onClick={() => setMemoryLang(item)} type="button">
-                  {item === "fr" ? "Français" : item === "en" ? "English" : "العربية"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="form-field">
             <label htmlFor="email">Email</label>
             <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="user@example.com" />
             {creatorEmail ? (
@@ -421,7 +410,7 @@ export function Configurator({
               placeholder={isArabic ? "مثال: 2405" : isEnglish ? "Example: 2405" : "Exemple : 2405"}
             />
             <small className="field-hint">
-              {lang === "en"
+              {isArabic
                 ? "إذا أضفته، يجب على الزوار كتابته قبل مشاهدة الألبوم من الرابط أو رمز QR."
                 : isEnglish
                 ? "If you add one, visitors must type it before seeing the album from the link or QR Code."

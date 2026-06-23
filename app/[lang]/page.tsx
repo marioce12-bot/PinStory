@@ -64,10 +64,10 @@ export default async function LandingPage({
       ];
 
   const steps = isArabic
-    ? ["اختر الخطة واللغة", "أضف الأماكن المهمة", "شارك الخريطة النهائية عبر رابط أو رمز QR"]
+    ? ["اختر الخطة المناسبة", "أضف الأماكن المهمة", "شارك الخريطة النهائية عبر رابط أو رمز QR"]
     : isEnglish
-    ? ["Choose your plan and language", "Add meaningful places", "Share the final map by link or QR Code"]
-    : ["Choisissez la formule et la langue", "Ajoutez vos lieux importants", "Partagez la carte par lien ou QR Code"];
+    ? ["Choose your plan", "Add meaningful places", "Share the final map by link or QR Code"]
+    : ["Choisissez la formule", "Ajoutez vos lieux importants", "Partagez la carte par lien ou QR Code"];
 
   const faqs = isArabic
     ? [
@@ -108,13 +108,20 @@ export default async function LandingPage({
         />
         <nav className="nav-bar" aria-label="Main navigation">
           <BrandLogo href={`/${lang}`} />
-          <div className="lang-switch" aria-label="Language selector">
-            {languageOptions.map((option) => (
-              <Link className={option.locale === lang ? "active" : ""} href={`/${option.locale}`} key={option.locale}>
-                {option.label}
-              </Link>
-            ))}
+          <div className="nav-actions">
             <Link href={`/${lang}/create`}>{dictionary.navigation.create}</Link>
+            <details className="language-menu">
+              <summary aria-label={isArabic ? "تغيير اللغة" : isEnglish ? "Change language" : "Changer de langue"}>
+                <span aria-hidden="true">☰</span>
+              </summary>
+              <div className="language-menu-panel" aria-label="Language selector">
+                {languageOptions.map((option) => (
+                  <Link className={option.locale === lang ? "active" : ""} href={`/${option.locale}`} key={option.locale}>
+                    {option.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
           </div>
         </nav>
 
