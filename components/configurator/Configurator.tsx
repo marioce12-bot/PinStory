@@ -144,9 +144,10 @@ export function Configurator({
   const [email, setEmail] = useState("");
   const [creatorEmail, setCreatorEmail] = useState("");
   const [showIdentityGate, setShowIdentityGate] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const [secretCode, setSecretCode] = useState("");
-  const [title, setTitle] = useState(lang === "en" ? "Our story" : "Notre histoire");
-  const [message, setMessage] = useState(lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
+  const [title, setTitle] = useState(lang === "ar" ? "قصتنا" : lang === "en" ? "Our story" : "Notre histoire");
+  const [message, setMessage] = useState(lang === "ar" ? "خريطة حيّة لنا." : lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
   const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1, lang)]);
   const [activePointId, setActivePointId] = useState(points[0].id);
   const [status, setStatus] = useState<string | null>(null);
@@ -291,7 +292,7 @@ export function Configurator({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Upload failed";
       setStatus(
-        lang === "en"
+        isArabic
           ? `${message}. جرّب صورة أصغر أو تحقق من إعدادات Cloudinary.`
           : isEnglish
             ? `${message}. Try a smaller photo or check Cloudinary settings.`
@@ -305,6 +306,7 @@ export function Configurator({
   async function submit(identityEmail = creatorEmail) {
     setStatus(null);
     if (!identityEmail) {
+      setIdentityError(null);
       setShowIdentityGate(true);
       return;
     }
@@ -338,29 +340,55 @@ export function Configurator({
 
   async function continueWithGoogle() {
     setStatus(null);
+    setIdentityError(null);
     const auth = getFirebaseClientAuth();
     if (!auth) {
-      setStatus(isArabic ? "تسجيل الدخول عبر Google غير مفعّل حالياً." : isEnglish ? "Google login is not configured yet." : "La connexion Google n’est pas encore configurée.");
+      setIdentityError(isArabic ? "تسجيل الدخول عبر Google غير مفعّل حالياً." : isEnglish ? "Google login is not configured yet." : "La connexion Google n’est pas encore configurée.");
       return;
     }
 
-    const credential = await signInWithPopup(auth, googleProvider);
-    const nextEmail = credential.user.email || email;
-    setCreatorEmail(nextEmail);
-    setEmail(nextEmail);
-    setShowIdentityGate(false);
-    await submit(nextEmail);
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      const nextEmail = credential.user.email || email;
+      if (!nextEmail) {
+        setIdentityError(isArabic ? "لم نتمكن من استرجاع بريدك الإلكتروني من Google." : isEnglish ? "We could not retrieve your email from Google." : "Impossible de récupérer votre email depuis Google.");
+        return;
+      }
+
+      setCreatorEmail(nextEmail);
+      setEmail(nextEmail);
+      setShowIdentityGate(false);
+      await submit(nextEmail);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Google sign-in failed";
+      setIdentityError(
+        isArabic
+          ? `تعذر الاتصال عبر Google: ${message}`
+          : isEnglish
+            ? `Google sign-in failed: ${message}`
+            : `La connexion Google a échoué : ${message}`,
+      );
+    }
   }
 
   function continueWithEmail() {
-    if (!email) {
-      setStatus(isArabic ? "أدخل بريدك الإلكتروني أولاً." : isEnglish ? "Enter your email first." : "Entrez d’abord votre email.");
+    const normalizedEmail = email.trim();
+    setIdentityError(null);
+
+    if (!normalizedEmail) {
+      setIdentityError(isArabic ? "أدخل بريدك الإلكتروني أولاً." : isEnglish ? "Enter your email first." : "Entrez d’abord votre email.");
       return;
     }
 
-    setCreatorEmail(email);
+    if (!normalizedEmail.includes("@")) {
+      setIdentityError(isArabic ? "أدخل بريداً إلكترونياً صحيحاً." : isEnglish ? "Enter a valid email address." : "Entrez une adresse email valide.");
+      return;
+    }
+
+    setEmail(normalizedEmail);
+    setCreatorEmail(normalizedEmail);
     setShowIdentityGate(false);
-    void submit(email);
+    void submit(normalizedEmail);
   }
 
   return (
@@ -456,23 +484,23 @@ export function Configurator({
                     <small className="field-hint">
                       {limits.media
                         ? uploadingPointId === point.id
-                          ? lang === "en"
+                          ? isArabic
                             ? "جاري الرفع..."
                             : isEnglish
                             ? "Uploading..."
                             : "Upload en cours..."
                           : limits.videos
-                            ? lang === "en"
+                            ? isArabic
                               ? "أضف صورة أو فيديو لهذه الذكرى."
                               : isEnglish
                               ? "Upload one image or video for this memory."
                               : "Ajoutez une image ou une vidéo pour ce souvenir."
-                            : lang === "en"
+                            : isArabic
                               ? "أضف صورة واحدة لهذه الذكرى."
                               : isEnglish
                               ? "Upload one photo for this memory."
                               : "Ajoutez une photo pour ce souvenir."
-                        : lang === "en"
+                        : isArabic
                           ? "الوسائط غير مفعلة في المعاينة المجانية."
                           : isEnglish
                           ? "Media is disabled on the Free preview."
@@ -493,7 +521,7 @@ export function Configurator({
                       </button>
                     </div>
                     <small className="field-hint">
-                      {lang === "en"
+                      {isArabic
                         ? "لا حاجة لإدخال إحداثيات. ابحث، انقر على المعاينة، أو استخدم موقعك الحالي."
                         : isEnglish
                         ? "No coordinates to type. Search, click the preview map, or use your current position."
@@ -535,7 +563,7 @@ export function Configurator({
               {status}
             </p>
           ) : null}
-          <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !email || !title || points.length === 0}>
+          <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !title || points.length === 0}>
             {plan === "free" ? dictionary.cta.save : dictionary.cta.checkout}
           </button>
         </div>
@@ -551,12 +579,28 @@ export function Configurator({
             <BrandLogo href={`/${lang}`} />
             <h2>{isArabic ? "حفظ ألبومك" : isEnglish ? "Save your album" : "Sauvegarder votre album"}</h2>
             <p>
-              {lang === "en"
+              {isArabic
                 ? "تابع باستخدام Google أو البريد الإلكتروني لحفظ ذكرياتك. لا حاجة إلى كلمة مرور."
                 : isEnglish
                 ? "Continue with Google or email to save your memories. No password required."
                 : "Continuez avec Google ou email pour sauvegarder vos souvenirs. Aucun mot de passe requis."}
             </p>
+            <div className="form-field">
+              <label htmlFor="identity-email">Email</label>
+              <input
+                id="identity-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="user@example.com"
+                autoComplete="email"
+              />
+            </div>
+            {identityError ? (
+              <p className="secret-error" role="alert">
+                {identityError}
+              </p>
+            ) : null}
             <button className="btn-cta" type="button" onClick={continueWithGoogle}>
               {isArabic ? "المتابعة باستخدام Google" : isEnglish ? "Continue with Google" : "Continuer avec Google"}
             </button>
