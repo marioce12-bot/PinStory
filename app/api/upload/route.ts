@@ -4,6 +4,15 @@ import { v2 as cloudinary } from "cloudinary";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+type CloudinaryUpload = {
+  secure_url: string;
+  resource_type: string;
+};
+
+type CloudinaryError = Error & {
+  http_code?: number;
+};
+
 function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
   if (!url.includes("/upload/")) return url;
 
@@ -11,46 +20,95 @@ function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
   return url.replace("/upload/", `/upload/${transformation}/`);
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string") return error;
+  return "Unknown upload error";
+}
+
+function getCloudinaryStatus(error: unknown) {
+  const status = (error as CloudinaryError | undefined)?.http_code;
+  if (typeof status === "number" && status >= 400 && status < 600) return status;
+  return 502;
+}
+
+async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video") {
+  return new Promise<CloudinaryUpload>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "pinstory",
+        resource_type: resourceType,
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        if (!result?.secure_url || !result.resource_type) {
+          reject(new Error("Cloudinary returned an incomplete upload response."));
+          return;
+        }
+
+        resolve({ secure_url: result.secure_url, resource_type: result.resource_type });
+      },
+    );
+
+    stream.on("error", reject);
+    stream.end(bytes);
+  });
+}
+
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("file");
-  const plan = String(formData.get("plan") || "free");
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    const plan = String(formData.get("plan") || "free");
 
-  if (!(file instanceof File)) return NextResponse.json({ error: "Missing file." }, { status: 400 });
-  if (file.type.startsWith("video/") && plan !== "eternal") {
-    return NextResponse.json({ error: "Videos require the Eternal plan." }, { status: 403 });
+    if (!(file instanceof File)) return NextResponse.json({ error: "Missing file." }, { status: 400 });
+    if (file.type.startsWith("video/") && plan !== "eternal") {
+      return NextResponse.json({ error: "Videos require the Eternal plan." }, { status: 403 });
+    }
+
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      return NextResponse.json({ error: "Only images and videos are supported." }, { status: 400 });
+    }
+
+    if (file.size > 12_000_000) {
+      return NextResponse.json({ error: "File is too large after compression. Please choose a smaller file." }, { status: 413 });
+    }
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const missing = [
+      ["CLOUDINARY_CLOUD_NAME", cloudName],
+      ["CLOUDINARY_API_KEY", apiKey],
+      ["CLOUDINARY_API_SECRET", apiSecret],
+    ]
+      .filter(([, value]) => !value)
+      .map(([key]) => key);
+
+    if (missing.length > 0) {
+      return NextResponse.json({ error: `Cloudinary is not configured. Missing: ${missing.join(", ")}.` }, { status: 503 });
+    }
+
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+    const resourceType = file.type.startsWith("video/") ? "video" : "image";
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const upload = await uploadToCloudinary(bytes, resourceType);
+
+    return NextResponse.json({
+      media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
+      media_type: upload.resource_type === "video" ? "video" : "image",
+    });
+  } catch (error) {
+    console.error("PinStory upload failed", error);
+    return NextResponse.json(
+      {
+        error: `Upload failed: ${getErrorMessage(error)}`,
+      },
+      { status: getCloudinaryStatus(error) },
+    );
   }
-
-  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-    return NextResponse.json({ error: "Only images and videos are supported." }, { status: 400 });
-  }
-
-  if (file.size > 12_000_000) {
-    return NextResponse.json({ error: "File is too large after compression. Please choose a smaller file." }, { status: 413 });
-  }
-
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    return NextResponse.json({ error: "Cloudinary is not configured yet." }, { status: 503 });
-  }
-
-  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
-  const bytes = Buffer.from(await file.arrayBuffer());
-
-  const upload = await new Promise<{ secure_url: string; resource_type: string }>((resolve, reject) => {
-    cloudinary.uploader
-      .upload_stream({ folder: "pinstory", resource_type: "auto", quality: "auto:good" }, (error, result) => {
-        if (error || !result) reject(error || new Error("Upload failed."));
-        else resolve({ secure_url: result.secure_url, resource_type: result.resource_type });
-      })
-      .end(bytes);
-  });
-
-  return NextResponse.json({
-    media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
-    media_type: upload.resource_type === "video" ? "video" : "image",
-  });
 }

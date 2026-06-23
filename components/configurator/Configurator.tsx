@@ -100,7 +100,7 @@ function uploadWithProgress(
 
         reject(new Error(payload.error || "Upload failed"));
       } catch {
-        reject(new Error("Invalid upload response"));
+        reject(new Error(`Invalid upload response (${request.status})`));
       }
     };
 
