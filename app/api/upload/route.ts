@@ -128,12 +128,12 @@ function getCloudinaryStatus(error: unknown) {
   return 502;
 }
 
-async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video") {
+async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video", folder?: string) {
   return new Promise<CloudinaryUpload>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder: "pinstory",
         resource_type: resourceType,
+        ...(folder ? { folder } : {}),
       },
       (error, result) => {
         if (error) {
@@ -153,6 +153,19 @@ async function uploadToCloudinary(bytes: Buffer, resourceType: "image" | "video"
     stream.on("error", reject);
     stream.end(bytes);
   });
+}
+
+async function uploadWithFolderFallback(bytes: Buffer, resourceType: "image" | "video") {
+  try {
+    return await uploadToCloudinary(bytes, resourceType, "pinstory");
+  } catch (error) {
+    const status = getCloudinaryStatus(error);
+
+    if (status !== 403) throw error;
+
+    console.warn("PinStory Cloudinary folder upload failed with 403. Retrying at cloud root.", error);
+    return uploadToCloudinary(bytes, resourceType);
+  }
 }
 
 export async function GET() {
@@ -227,7 +240,7 @@ export async function POST(request: Request) {
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
     const resourceType = file.type.startsWith("video/") ? "video" : "image";
     const bytes = Buffer.from(await file.arrayBuffer());
-    const upload = await uploadToCloudinary(bytes, resourceType);
+    const upload = await uploadWithFolderFallback(bytes, resourceType);
 
     return NextResponse.json({
       media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
