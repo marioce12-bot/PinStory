@@ -24,6 +24,24 @@ export const audioCatalog: AudioTrack[] = [
     genre: "Trap / Énergie",
     url: process.env.NEXT_PUBLIC_AUDIO_NISKA_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
   },
+  {
+    id: "soft_piano",
+    title: "Piano Doux",
+    genre: "Calme / Romantique",
+    url: process.env.NEXT_PUBLIC_AUDIO_SOFT_PIANO_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+  },
+  {
+    id: "soft_love",
+    title: "Love Memories",
+    genre: "Doux / Émotion",
+    url: process.env.NEXT_PUBLIC_AUDIO_SOFT_LOVE_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+  },
+  {
+    id: "soft_cinematic",
+    title: "Cinematic Soft",
+    genre: "Cinématique / Lent",
+    url: process.env.NEXT_PUBLIC_AUDIO_SOFT_CINEMATIC_URL || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+  },
 ];
 
 export function getAudioTrackByUrl(url?: string | null) {

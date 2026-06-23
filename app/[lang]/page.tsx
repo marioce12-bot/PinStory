@@ -110,7 +110,7 @@ export default async function LandingPage({
         <nav className="nav-bar" aria-label="Main navigation">
           <BrandLogo href={`/${lang}`} />
           <div className="nav-actions">
-            <Link href={`/${lang}/create`}>{dictionary.navigation.create}</Link>
+            <Link href={`/${lang}/history`}>{isArabic ? "ذكرياتي" : isEnglish ? "My memories" : "Mes souvenirs"}</Link>
             <details className="language-menu">
               <summary aria-label={isArabic ? "تغيير اللغة" : isEnglish ? "Change language" : "Changer de langue"}>
                 <span aria-hidden="true">☰</span>
@@ -131,9 +131,9 @@ export default async function LandingPage({
             <h1 className="hero-title">{dictionary.landing.hero_title}</h1>
             <p className="hero-copy">{dictionary.landing.hero_copy}</p>
             <div className="hero-actions animate-rise-delayed">
-              <Link className="btn-cta" href={`/${lang}/create`}>
+              <a className="btn-cta" href="#pricing">
                 {dictionary.landing.primary_cta}
-              </Link>
+              </a>
               <a className="btn-secondary" href="#pricing">
                 {dictionary.landing.secondary_cta}
               </a>

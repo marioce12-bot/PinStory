@@ -139,7 +139,7 @@ export function Configurator({
   const isArabic = lang === "ar";
   const isEnglish = lang === "en";
   const [isPending, startTransition] = useTransition();
-  const [plan, setPlan] = useState<Plan>(initialPlan);
+  const plan = initialPlan;
   const memoryLang: Locale = lang;
   const [theme, setTheme] = useState<ThemeStyle>(PLAN_LIMITS[initialPlan].themes[0] as ThemeStyle);
   const [email, setEmail] = useState("");
@@ -165,23 +165,6 @@ export function Configurator({
   const limits = PLAN_LIMITS[plan];
   const availableThemes = limits.themes as readonly ThemeStyle[];
   const activePoint = points.find((point) => point.id === activePointId) || points[0];
-
-  function updatePlan(nextPlan: Plan) {
-    setPlan(nextPlan);
-    const nextThemes = PLAN_LIMITS[nextPlan].themes as readonly ThemeStyle[];
-    if (!nextThemes.includes(theme)) setTheme(nextThemes[0]);
-    setPoints((current) =>
-      current.slice(0, PLAN_LIMITS[nextPlan].maxPoints).map((point) =>
-        PLAN_LIMITS[nextPlan].media
-          ? point
-          : {
-              ...point,
-              media_url: undefined,
-              media_type: undefined,
-            },
-      ),
-    );
-  }
 
   function updatePoint(id: string, patch: Partial<MemoryPoint>) {
     setPoints((current) => current.map((point) => (point.id === id ? { ...point, ...patch } : point)));
@@ -411,15 +394,16 @@ export function Configurator({
             {isArabic ? "أنشئ خريطة ذكرياتك" : isEnglish ? "Build your memory map" : "Construisez votre carte souvenir"}
           </h1>
 
-          <div className="form-field">
-            <label>{isArabic ? "الخطة" : isEnglish ? "Plan" : "Formule"}</label>
-            <div className="segmented-grid">
-              {(["free", "mini", "souvenir", "eternal"] as const).map((item) => (
-                <button className={`segment-button ${plan === item ? "active" : ""}`} key={item} onClick={() => updatePlan(item)} type="button">
-                  {dictionary.plans[item]}
-                </button>
-              ))}
-            </div>
+          <div className="selected-plan-card">
+            <span>{isArabic ? "الخطة المختارة" : isEnglish ? "Selected plan" : "Formule choisie"}</span>
+            <strong>{dictionary.plans[plan]}</strong>
+            <small>
+              {isArabic
+                ? "لتغيير الخطة، ارجع إلى صفحة الأسعار واختر عرضاً آخر."
+                : isEnglish
+                  ? "To change it, go back to pricing and choose another plan."
+                  : "Pour la changer, revenez aux offres et choisissez une autre formule."}
+            </small>
           </div>
 
           <div className="form-field">

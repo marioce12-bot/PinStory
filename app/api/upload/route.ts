@@ -227,12 +227,12 @@ export async function POST(request: Request) {
     const plan = String(formData.get("plan") || "free");
 
     if (!(file instanceof File)) return NextResponse.json({ error: "Missing file." }, { status: 400 });
-    if (file.type.startsWith("video/") && plan !== "eternal") {
+    if (file.type.startsWith("video/") && !file.type.startsWith("audio/") && plan !== "eternal") {
       return NextResponse.json({ error: "Videos require the Eternal plan." }, { status: 403 });
     }
 
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-      return NextResponse.json({ error: "Only images and videos are supported." }, { status: 400 });
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("audio/")) {
+      return NextResponse.json({ error: "Only images, videos and audio files are supported." }, { status: 400 });
     }
 
     if (file.size > 12_000_000) {
@@ -252,19 +252,19 @@ export async function POST(request: Request) {
     }
 
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
-    const resourceType = file.type.startsWith("video/") ? "video" : "image";
+    const resourceType = file.type.startsWith("video/") || file.type.startsWith("audio/") ? "video" : "image";
     const bytes = Buffer.from(await file.arrayBuffer());
     const upload = await uploadToCloudinaryRest({
       bytes,
       resourceType,
-      mimeType: file.type || (resourceType === "image" ? "image/webp" : "video/mp4"),
-      fileName: file.name || `pinstory-upload.${resourceType === "image" ? "webp" : "mp4"}`,
+      mimeType: file.type || (resourceType === "image" ? "image/webp" : "audio/mpeg"),
+      fileName: file.name || `pinstory-upload.${resourceType === "image" ? "webp" : "mp3"}`,
       config: { cloudName: cloudName!, apiKey: apiKey!, apiSecret: apiSecret! },
     });
 
     return NextResponse.json({
       media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
-      media_type: upload.resource_type === "video" ? "video" : "image",
+      media_type: file.type.startsWith("audio/") ? "audio" : upload.resource_type === "video" ? "video" : "image",
     });
   } catch (error) {
     console.error("PinStory upload failed", error);

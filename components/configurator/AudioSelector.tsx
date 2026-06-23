@@ -4,6 +4,50 @@ import { useEffect, useRef, useState } from "react";
 import { audioCatalog } from "@/config/audioCatalog";
 import type { Locale } from "@/lib/i18n";
 
+const AUDIO_UPLOAD_TIMEOUT_MS = 60000;
+
+function uploadAudioWithProgress(file: File, onProgress: (percent: number) => void) {
+  return new Promise<{ media_url?: string; error?: string }>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const timeout = window.setTimeout(() => {
+      request.abort();
+      reject(new Error("Upload timeout"));
+    }, AUDIO_UPLOAD_TIMEOUT_MS);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("plan", "audio");
+
+    request.open("POST", "/api/upload");
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onload = () => {
+      window.clearTimeout(timeout);
+      try {
+        const payload = JSON.parse(request.responseText || "{}") as { media_url?: string; error?: string };
+        if (request.status >= 200 && request.status < 300) {
+          resolve(payload);
+          return;
+        }
+        reject(new Error(payload.error || "Audio upload failed"));
+      } catch {
+        reject(new Error(`Invalid upload response (${request.status})`));
+      }
+    };
+    request.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("Network upload error"));
+    };
+    request.onabort = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("Upload cancelled"));
+    };
+    request.send(formData);
+  });
+}
+
 export function AudioSelector({
   lang,
   selectedUrl,
@@ -15,6 +59,9 @@ export function AudioSelector({
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+  const [customAudioUrl, setCustomAudioUrl] = useState("");
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const isArabic = lang === "ar";
   const isEnglish = lang === "en";
@@ -50,6 +97,37 @@ export function AudioSelector({
       await audio.play();
     } catch {
       setPlayingTrackId(null);
+    }
+  }
+
+  async function uploadCustomAudio(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) {
+      setUploadStatus(isArabic ? "اختر ملفاً صوتياً فقط." : isEnglish ? "Please choose an audio file." : "Choisissez uniquement un fichier audio.");
+      return;
+    }
+
+    try {
+      stopPreview();
+      setIsUploading(true);
+      setUploadStatus(isArabic ? "بدء رفع الموسيقى..." : isEnglish ? "Uploading music..." : "Upload de la musique...");
+      const result = await uploadAudioWithProgress(file, (percent) => {
+        setUploadStatus(isArabic ? `رفع الموسيقى... ${percent}%` : isEnglish ? `Uploading music... ${percent}%` : `Upload de la musique... ${percent}%`);
+      });
+
+      if (!result.media_url) {
+        setUploadStatus(result.error || (isArabic ? "فشل رفع الموسيقى." : isEnglish ? "Music upload failed." : "L’upload de la musique a échoué."));
+        return;
+      }
+
+      setCustomAudioUrl(result.media_url);
+      onSelect(result.media_url);
+      setUploadStatus(isArabic ? "تمت إضافة الموسيقى." : isEnglish ? "Music added." : "Musique ajoutée.");
+      window.setTimeout(() => setUploadStatus(null), 1800);
+    } catch (error) {
+      setUploadStatus(error instanceof Error ? error.message : isArabic ? "فشل رفع الموسيقى." : isEnglish ? "Music upload failed." : "L’upload de la musique a échoué.");
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -112,6 +190,19 @@ export function AudioSelector({
             </button>
           </article>
         ))}
+
+        <article className={`audio-track-card custom-audio-card ${selectedUrl && selectedUrl === customAudioUrl ? "active" : ""}`}>
+          <span className="audio-track-icon" aria-hidden="true">⬆</span>
+          <span>
+            <strong>{isArabic ? "ارفع موسيقاك" : isEnglish ? "Upload your music" : "Uploader votre musique"}</strong>
+            <small>{isArabic ? "من الهاتف" : isEnglish ? "From your phone" : "Depuis votre téléphone"}</small>
+          </span>
+          <label className="audio-choose-button audio-upload-label">
+            {isUploading ? "..." : isArabic ? "رفع" : isEnglish ? "Upload" : "Uploader"}
+            <input type="file" accept="audio/*" disabled={isUploading} onChange={(event) => void uploadCustomAudio(event.target.files?.[0])} />
+          </label>
+          {uploadStatus ? <p className="field-hint audio-upload-status">{uploadStatus}</p> : null}
+        </article>
       </div>
     </section>
   );

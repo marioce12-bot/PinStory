@@ -9,6 +9,31 @@ function createId() {
   return `map_${crypto.randomUUID().replaceAll("-", "").slice(0, 14)}`;
 }
 
+function isActiveMap(map: { expires_at?: string | null; payment_status?: string | null }) {
+  const isNotExpired = !map.expires_at || new Date(map.expires_at) > new Date();
+  const isUsableStatus = map.payment_status === "free" || map.payment_status === "paid";
+  return isNotExpired && isUsableStatus;
+}
+
+async function countActiveFreeMapsForEmail(email: string) {
+  const firebaseDb = getFirebaseDb();
+  if (firebaseDb) {
+    const snapshot = await firebaseDb.collection("maps").where("client_email", "==", email).get();
+    return snapshot.docs.filter((doc) => {
+      const data = doc.data() as { plan?: string; expires_at?: string | null; payment_status?: string | null };
+      return data.plan === "free" && isActiveMap(data);
+    }).length;
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const { data } = await supabase.from("maps").select("plan, expires_at, payment_status").eq("client_email", email);
+    return (data || []).filter((map) => map.plan === "free" && isActiveMap(map)).length;
+  }
+
+  return 0;
+}
+
 export async function POST(request: Request) {
   const payload = await request.json();
   const appUrl = new URL(request.url).origin;
@@ -20,10 +45,28 @@ export async function POST(request: Request) {
 
   const data = payload as Record<string, unknown>;
   const id = createId();
-  const clientEmail = String(data.client_email || "");
+  const clientEmail = String(data.client_email || "").trim().toLowerCase();
   const createdAt = new Date();
   const expiresAt = getPlanExpiry(validation.plan, createdAt);
   const paymentStatus = validation.plan === "free" ? "free" : "pending";
+
+  if (!clientEmail) {
+    return NextResponse.json({ error: "Email is required to create a PinStory." }, { status: 400 });
+  }
+
+  if (validation.plan === "free") {
+    const activeFreeMaps = await countActiveFreeMapsForEmail(clientEmail);
+    if (activeFreeMaps >= 2) {
+      return NextResponse.json(
+        {
+          error:
+            "Free plan limit reached: you can keep up to 2 active free PinStory links. Upgrade or wait for one to expire.",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
   const mapRecord = {
     id,
     client_email: clientEmail,
