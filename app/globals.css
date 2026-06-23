@@ -869,6 +869,122 @@ button {
   backdrop-filter: blur(14px);
 }
 
+.preview-media-collage {
+  position: absolute;
+  inset: 1.25rem;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+.preview-media-tile {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+}
+
+.preview-media-tile:nth-child(2),
+.preview-media-tile:nth-child(3) {
+  transform: translateY(2rem);
+}
+
+.preview-media-tile img,
+.preview-media-tile video {
+  width: 100%;
+  height: 100%;
+  min-height: 10rem;
+  object-fit: cover;
+}
+
+.identity-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(17, 20, 26, 0.46);
+  backdrop-filter: blur(12px);
+}
+
+.identity-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 460px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 30px;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-lg);
+  animation: heroRise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.identity-modal h2 {
+  font-family: var(--font-heading), serif;
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.identity-modal p {
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.secret-gate-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(0, 234, 154, 0.24), transparent 24rem),
+    radial-gradient(circle at 80% 82%, rgba(255, 183, 3, 0.22), transparent 24rem),
+    linear-gradient(135deg, #ffffff, #eef9f5);
+}
+
+.secret-gate-card {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 480px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 34px;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(16px);
+}
+
+.secret-gate-card h1 {
+  font-family: var(--font-heading), serif;
+  font-size: clamp(2.4rem, 7vw, 4.5rem);
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.secret-gate-card p {
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.secret-gate-card input {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: white;
+  color: var(--text-main);
+}
+
+.secret-error {
+  color: #b42318 !important;
+  font-weight: 800;
+}
+
 .map-container-fullscreen {
   position: absolute;
   inset: 0;

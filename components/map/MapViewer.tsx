@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { QRCodeCanvas } from "qrcode.react";
+import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getMapboxStyle, PLAN_LIMITS } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
@@ -63,6 +64,9 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
   const [activeIndex, setActiveIndex] = useState(0);
   const [showQr, setShowQr] = useState(false);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [secretInput, setSecretInput] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(!map.secret_code);
+  const [secretError, setSecretError] = useState<string | null>(null);
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const currentPoint = map.points[activeIndex] || map.points[0];
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app";
@@ -141,6 +145,41 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
     link.click();
   }
 
+  function unlockAlbum() {
+    if (!map.secret_code || secretInput.trim() === map.secret_code) {
+      setIsUnlocked(true);
+      setSecretError(null);
+      return;
+    }
+
+    setSecretError(map.lang === "en" ? "Incorrect secret code." : "Code secret incorrect.");
+  }
+
+  if (!isUnlocked) {
+    return (
+      <main className="secret-gate-page">
+        <div className="secret-gate-card">
+          <BrandLogo href={`/${map.lang}`} />
+          <p className="popup-date">{map.lang === "en" ? "Private album" : "Album privé"}</p>
+          <h1>{map.title}</h1>
+          <p>{map.lang === "en" ? "Enter the secret code to open this PinStory." : "Entrez le code secret pour ouvrir ce PinStory."}</p>
+          <input
+            value={secretInput}
+            onChange={(event) => setSecretInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") unlockAlbum();
+            }}
+            placeholder={map.lang === "en" ? "Secret code" : "Code secret"}
+          />
+          {secretError ? <p className="secret-error">{secretError}</p> : null}
+          <button className="btn-cta" type="button" onClick={unlockAlbum}>
+            {map.lang === "en" ? "Open album" : "Ouvrir l’album"}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
       {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
@@ -162,7 +201,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
       <div className="map-ui-overlay">
         <header className="ui-card-header map-header-card">
           <div>
-            <p className="popup-date">PinStory</p>
+            <BrandLogo href={`/${map.lang}`} />
             <h1 className="popup-title">{map.title}</h1>
             <p>{map.message}</p>
           </div>

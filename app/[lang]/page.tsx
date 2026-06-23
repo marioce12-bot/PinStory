@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FAQJsonLd } from "@/components/seo/FAQJsonLd";
 import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
+import { BrandLogo } from "@/components/shared/BrandLogo";
 import { ScrollReveal } from "@/components/shared/ScrollReveal";
 import { getDictionary, isLocale, type Locale } from "@/lib/i18n";
 
@@ -74,17 +75,7 @@ export default async function LandingPage({
       <FAQJsonLd lang={lang} />
       <section className="landing-hero">
         <nav className="nav-bar" aria-label="Main navigation">
-          <Link href={`/${lang}`} className="brand-mark">
-            <Image
-              className="brand-logo"
-              src="/images/pinstory-logo.jpeg"
-              alt="PinStory logo"
-              width={44}
-              height={44}
-              priority
-            />
-            <span>{dictionary.brand.name}</span>
-          </Link>
+          <BrandLogo href={`/${lang}`} />
           <div className="lang-switch" aria-label="Language selector">
             <Link href={`/${otherLang}`}>{otherLang.toUpperCase()}</Link>
             <Link href={`/${lang}/create`}>{dictionary.navigation.create}</Link>
@@ -93,7 +84,6 @@ export default async function LandingPage({
 
         <div className="hero-grid">
           <div className="hero-copy-block animate-rise">
-            <span className="eyebrow">{dictionary.landing.eyebrow}</span>
             <h1 className="hero-title">{dictionary.landing.hero_title}</h1>
             <p className="hero-copy">{dictionary.landing.hero_copy}</p>
             <div className="hero-actions animate-rise-delayed">

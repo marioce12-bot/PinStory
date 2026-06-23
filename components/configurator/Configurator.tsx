@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithPopup } from "firebase/auth";
 import { LiveMapPreview } from "@/components/configurator/LiveMapPreview";
+import { BrandLogo } from "@/components/shared/BrandLogo";
+import { getFirebaseClientAuth, googleProvider } from "@/lib/firebase-client";
 import type { Locale } from "@/lib/i18n";
 import { PLAN_LIMITS, type Plan, type ThemeStyle } from "@/lib/plans";
 import type { MemoryPoint } from "@/lib/types";
@@ -42,6 +45,9 @@ export function Configurator({
   const [memoryLang, setMemoryLang] = useState<Locale>(lang);
   const [theme, setTheme] = useState<ThemeStyle>(PLAN_LIMITS[initialPlan].themes[0] as ThemeStyle);
   const [email, setEmail] = useState("");
+  const [creatorEmail, setCreatorEmail] = useState("");
+  const [showIdentityGate, setShowIdentityGate] = useState(false);
+  const [secretCode, setSecretCode] = useState("");
   const [title, setTitle] = useState(lang === "en" ? "Our story" : "Notre histoire");
   const [message, setMessage] = useState(lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
   const [points, setPoints] = useState<MemoryPoint[]>([defaultPoint(1, lang)]);
@@ -181,18 +187,24 @@ export function Configurator({
     updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
   }
 
-  async function submit() {
+  async function submit(identityEmail = creatorEmail) {
     setStatus(null);
+    if (!identityEmail) {
+      setShowIdentityGate(true);
+      return;
+    }
+
     const response = await fetch("/api/maps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_email: email,
+        client_email: identityEmail || email,
         lang: memoryLang,
         plan,
         theme_style: theme,
         title,
         message,
+        secret_code: secretCode,
         points,
       }),
     });
@@ -209,14 +221,38 @@ export function Configurator({
     });
   }
 
+  async function continueWithGoogle() {
+    setStatus(null);
+    const auth = getFirebaseClientAuth();
+    if (!auth) {
+      setStatus(lang === "en" ? "Google login is not configured yet." : "La connexion Google n’est pas encore configurée.");
+      return;
+    }
+
+    const credential = await signInWithPopup(auth, googleProvider);
+    const nextEmail = credential.user.email || email;
+    setCreatorEmail(nextEmail);
+    setEmail(nextEmail);
+    setShowIdentityGate(false);
+    await submit(nextEmail);
+  }
+
+  function continueWithEmail() {
+    if (!email) {
+      setStatus(lang === "en" ? "Enter your email first." : "Entrez d’abord votre email.");
+      return;
+    }
+
+    setCreatorEmail(email);
+    setShowIdentityGate(false);
+    void submit(email);
+  }
+
   return (
     <main className="configurator-layout">
       <section className="configurator-sidebar" aria-label="Map configurator">
         <div className="form-stack">
-          <a href={`/${lang}`} className="brand-mark">
-            <span className="brand-dot" aria-hidden="true" />
-            <span>{dictionary.brand.name}</span>
-          </a>
+          <BrandLogo href={`/${lang}`} />
           <h1 className="section-title" style={{ fontSize: "clamp(2.2rem, 5vw, 4rem)" }}>
             {lang === "en" ? "Build your memory map" : "Construisez votre carte souvenir"}
           </h1>
@@ -246,6 +282,9 @@ export function Configurator({
           <div className="form-field">
             <label htmlFor="email">Email</label>
             <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="user@example.com" />
+            {creatorEmail ? (
+              <small className="field-hint">{lang === "en" ? `Connected as ${creatorEmail}` : `Connecté avec ${creatorEmail}`}</small>
+            ) : null}
           </div>
 
           <div className="form-field">
@@ -256,6 +295,21 @@ export function Configurator({
           <div className="form-field">
             <label htmlFor="message">Message</label>
             <textarea id="message" rows={3} value={message} onChange={(event) => setMessage(event.target.value)} />
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="secret-code">{lang === "en" ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
+            <input
+              id="secret-code"
+              value={secretCode}
+              onChange={(event) => setSecretCode(event.target.value)}
+              placeholder={lang === "en" ? "Example: 2405" : "Exemple : 2405"}
+            />
+            <small className="field-hint">
+              {lang === "en"
+                ? "If you add one, visitors must type it before seeing the album from the link or QR Code."
+                : "Si vous en ajoutez un, les visiteurs devront le saisir avant de voir l’album depuis le lien ou le QR Code."}
+            </small>
           </div>
 
           <div className="form-field">
@@ -365,7 +419,7 @@ export function Configurator({
               {status}
             </p>
           ) : null}
-          <button className="btn-cta" type="button" onClick={submit} disabled={isPending || !email || !title || points.length === 0}>
+          <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !email || !title || points.length === 0}>
             {plan === "free" ? dictionary.cta.save : dictionary.cta.checkout}
           </button>
         </div>
@@ -374,6 +428,29 @@ export function Configurator({
       <aside className="configurator-preview" aria-label={dictionary.navigation.preview}>
         <LiveMapPreview title={title} message={message} points={points} theme={theme} onPickLocation={pickLocationFromPreview} />
       </aside>
+
+      {showIdentityGate ? (
+        <div className="identity-modal-backdrop" role="dialog" aria-modal="true" aria-label={lang === "en" ? "Continue" : "Continuer"}>
+          <div className="identity-modal">
+            <BrandLogo href={`/${lang}`} />
+            <h2>{lang === "en" ? "Save your album" : "Sauvegarder votre album"}</h2>
+            <p>
+              {lang === "en"
+                ? "Continue with Google or email to save your memories. No password required."
+                : "Continuez avec Google ou email pour sauvegarder vos souvenirs. Aucun mot de passe requis."}
+            </p>
+            <button className="btn-cta" type="button" onClick={continueWithGoogle}>
+              {lang === "en" ? "Continue with Google" : "Continuer avec Google"}
+            </button>
+            <button className="btn-secondary" type="button" onClick={continueWithEmail}>
+              {lang === "en" ? "Continue with email" : "Continuer avec email"}
+            </button>
+            <button className="cookie-button cookie-button-muted" type="button" onClick={() => setShowIdentityGate(false)}>
+              {lang === "en" ? "Cancel" : "Annuler"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -31,6 +31,18 @@ export function LiveMapPreview({
     <div className="preview-panel">
       <div className={`live-map-preview ${theme}`} onClick={handlePreviewClick} role={onPickLocation ? "button" : undefined} tabIndex={onPickLocation ? 0 : undefined}>
         <div className="map-path" />
+        <div className="preview-media-collage" aria-hidden="true">
+          {points.filter((point) => point.media_url).slice(0, 4).map((point) => (
+            <div className="preview-media-tile" key={point.id}>
+              {point.media_type === "video" ? (
+                <video src={point.media_url} muted playsInline />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={point.media_url} alt="" />
+              )}
+            </div>
+          ))}
+        </div>
         {points.slice(0, 6).map((point, index) => (
           <span
             className={`custom-marker ${index === 0 ? "marker-active" : ""}`}

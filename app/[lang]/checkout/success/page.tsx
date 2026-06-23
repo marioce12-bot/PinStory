@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getDictionary, isLocale } from "@/lib/i18n";
 
 export default async function CheckoutSuccessPage({
@@ -16,6 +17,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <main className="section">
+      <BrandLogo href={`/${lang}`} />
       <h1 className="section-title">{lang === "en" ? "Your memory is ready" : "Votre souvenir est prêt"}</h1>
       <p className="section-copy">
         {lang === "en"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getDictionary, isLocale } from "@/lib/i18n";
 
 export default async function CheckoutCancelPage({ params }: { params: Promise<{ lang: string }> }) {
@@ -9,6 +10,7 @@ export default async function CheckoutCancelPage({ params }: { params: Promise<{
 
   return (
     <main className="section">
+      <BrandLogo href={`/${lang}`} />
       <h1 className="section-title">{lang === "en" ? "Payment cancelled" : "Paiement annulé"}</h1>
       <p className="section-copy">
         {lang === "en"

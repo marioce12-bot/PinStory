@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { MapViewer } from "@/components/map/MapViewer";
+import { BrandLogo } from "@/components/shared/BrandLogo";
 import { getDemoMap } from "@/lib/demo-map";
 import { getFirebaseDb } from "@/lib/firebase-admin";
 import { getDictionary } from "@/lib/i18n";
@@ -24,6 +25,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
         created_at: data.created_at || new Date().toISOString(),
         expires_at: data.expires_at || null,
         payment_status: data.payment_status || "free",
+        secret_code: data.secret_code || undefined,
         qr_code_url: data.qr_code_url,
         custom_qr_logo_url: data.custom_qr_logo_url,
         points: (data.points || []).map((point, index) => ({
@@ -67,6 +69,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
     created_at: map.created_at,
     expires_at: map.expires_at,
     payment_status: map.payment_status,
+    secret_code: map.secret_code || undefined,
     qr_code_url: map.qr_code_url,
     custom_qr_logo_url: map.custom_qr_logo_url,
     points: (points || []).map((point) => ({
@@ -124,6 +127,7 @@ export default async function PublicMapPage({ params }: { params: Promise<{ id: 
   if (isExpired) {
     return (
       <main className="section">
+        <BrandLogo href={`/${map.lang}`} />
         <h1 className="section-title">{dictionary.map.expired}</h1>
         <p className="section-copy">
           {map.lang === "en"

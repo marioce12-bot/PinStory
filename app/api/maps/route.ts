@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     created_at: createdAt.toISOString(),
     expires_at: expiresAt,
     payment_status: paymentStatus,
+    secret_code: typeof data.secret_code === "string" && data.secret_code.trim() ? data.secret_code.trim() : null,
     points: validation.points.map((point, index) => ({
       id: point.id || crypto.randomUUID(),
       order: index + 1,
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
       created_at: mapRecord.created_at,
       expires_at: mapRecord.expires_at,
       payment_status: mapRecord.payment_status,
+      secret_code: mapRecord.secret_code,
     });
 
     if (mapError) return NextResponse.json({ error: mapError.message }, { status: 500 });
