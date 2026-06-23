@@ -229,7 +229,26 @@ button {
     linear-gradient(135deg, #ffffff 0%, #f8f9fa 42%, #eef9f5 100%);
 }
 
-.landing-hero::before,
+.landing-hero-bg {
+  z-index: 0;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.2;
+  filter: saturate(1.08) contrast(1.03);
+}
+
+.landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(248, 249, 250, 0.94) 0%, rgba(248, 249, 250, 0.82) 45%, rgba(248, 249, 250, 0.58) 100%),
+    radial-gradient(circle at 82% 18%, rgba(0, 234, 154, 0.26), transparent 28rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(238, 249, 245, 0.76));
+  pointer-events: none;
+}
+
 .landing-hero::after {
   content: "";
   position: absolute;
@@ -238,22 +257,14 @@ button {
   pointer-events: none;
 }
 
-.landing-hero::before {
+.landing-hero::after {
   width: 18rem;
   height: 18rem;
   left: -5rem;
   top: 18rem;
+  z-index: 1;
   background: rgba(255, 183, 3, 0.18);
   animation: ambientDrift 11s ease-in-out infinite alternate;
-}
-
-.landing-hero::after {
-  width: 22rem;
-  height: 22rem;
-  right: -7rem;
-  bottom: -8rem;
-  background: rgba(0, 234, 154, 0.18);
-  animation: ambientDrift 13s ease-in-out infinite alternate-reverse;
 }
 
 .nav-bar,
@@ -270,6 +281,8 @@ button {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 5rem;
+  position: relative;
+  z-index: 2;
 }
 
 .brand-mark {
@@ -309,7 +322,7 @@ button {
   gap: clamp(2rem, 6vw, 5rem);
   align-items: center;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .hero-copy-block {

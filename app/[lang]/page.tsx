@@ -14,16 +14,18 @@ const planPrices = {
 };
 
 const landingImages = {
+  heroBackground:
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=55",
   hero:
-    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=85",
+    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=58",
   couple:
-    "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=1100&q=85",
+    "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=900&q=58",
   travel:
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=760&q=55",
   family:
-    "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=760&q=55",
   joy:
-    "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=900&q=85",
+    "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=760&q=55",
 };
 
 export default async function LandingPage({
@@ -74,6 +76,16 @@ export default async function LandingPage({
       <ProductJsonLd lang={lang} />
       <FAQJsonLd lang={lang} />
       <section className="landing-hero">
+        <Image
+          className="landing-hero-bg"
+          src={landingImages.heroBackground}
+          alt=""
+          fill
+          priority
+          quality={45}
+          sizes="100vw"
+          aria-hidden="true"
+        />
         <nav className="nav-bar" aria-label="Main navigation">
           <BrandLogo href={`/${lang}`} />
           <div className="lang-switch" aria-label="Language selector">
@@ -107,6 +119,8 @@ export default async function LandingPage({
               width={760}
               height={760}
               priority
+              quality={58}
+              sizes="(max-width: 992px) 100vw, 48vw"
             />
             <div className="preview-map-lines" />
             <article className="floating-memory popup-animated">
@@ -132,6 +146,8 @@ export default async function LandingPage({
               }
               width={920}
               height={620}
+              quality={58}
+              sizes="(max-width: 992px) 100vw, 68vw"
             />
           </div>
           <div className="showcase-caption popup-animated" data-reveal="slide-right">
@@ -146,15 +162,15 @@ export default async function LandingPage({
         </div>
         <div className="photo-story-grid" aria-label={isEnglish ? "Memory photo examples" : "Exemples de photos souvenirs"}>
           <article className="photo-story-card" data-reveal="slide-left">
-            <Image src={landingImages.travel} alt={isEnglish ? "Friends enjoying a travel memory" : "Amis profitant d'un souvenir de voyage"} width={620} height={460} />
+            <Image src={landingImages.travel} alt={isEnglish ? "Friends enjoying a travel memory" : "Amis profitant d'un souvenir de voyage"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
             <span>{isEnglish ? "Travel" : "Voyage"}</span>
           </article>
           <article className="photo-story-card tall" data-reveal="fade-up">
-            <Image src={landingImages.family} alt={isEnglish ? "Family joy captured as a keepsake" : "Joie familiale capturée comme souvenir"} width={620} height={640} />
+            <Image src={landingImages.family} alt={isEnglish ? "Family joy captured as a keepsake" : "Joie familiale capturée comme souvenir"} width={620} height={640} quality={55} sizes="(max-width: 992px) 100vw, 36vw" />
             <span>{isEnglish ? "Family" : "Famille"}</span>
           </article>
           <article className="photo-story-card" data-reveal="slide-right">
-            <Image src={landingImages.joy} alt={isEnglish ? "Shared joyful celebration memory" : "Souvenir joyeux d'une célébration partagée"} width={620} height={460} />
+            <Image src={landingImages.joy} alt={isEnglish ? "Shared joyful celebration memory" : "Souvenir joyeux d'une célébration partagée"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
             <span>{isEnglish ? "Joy" : "Joie"}</span>
           </article>
         </div>
@@ -190,7 +206,7 @@ export default async function LandingPage({
           </p>
         </div>
         <div className="route-preview-card" data-reveal="slide-right">
-          <Image src={landingImages.travel} alt={isEnglish ? "Interactive travel map souvenir" : "Carte interactive de souvenir de voyage"} width={720} height={520} />
+          <Image src={landingImages.travel} alt={isEnglish ? "Interactive travel map souvenir" : "Carte interactive de souvenir de voyage"} width={720} height={520} quality={55} sizes="(max-width: 992px) 100vw, 48vw" />
           <div className="route-overlay-card">
             <strong>{isEnglish ? "Get Directions" : "S'y rendre"}</strong>
             <span>{isEnglish ? "Open the route from the memory" : "Ouvrir l'itinéraire depuis le souvenir"}</span>
