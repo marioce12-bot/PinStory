@@ -270,6 +270,7 @@ export default async function LandingPage({
               <ul>
                 <li>{plan === "free" ? "3" : plan === "souvenir" ? "10" : "∞"} {isArabic ? "نقاط" : "points"}</li>
                 <li>{plan === "eternal" ? (isArabic ? "صور وفيديوهات" : isEnglish ? "Photos and videos" : "Photos et vidéos") : (isArabic ? "الصور مشمولة" : isEnglish ? "Photos included" : "Photos incluses")}</li>
+                <li>{isArabic ? "رمز QR مشمول" : isEnglish ? "QR Code included" : "QR Code inclus"}</li>
                 <li>{plan === "free" ? (isArabic ? "14 يوماً" : "14 jours") : plan === "souvenir" ? (isArabic ? "6 أشهر" : "6 mois") : (isArabic ? "مدى الحياة" : isEnglish ? "Lifetime" : "À vie")}</li>
               </ul>
               <Link className="btn-cta" href={`/${lang}/create?plan=${plan}`}>

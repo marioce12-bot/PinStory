@@ -5,7 +5,7 @@ export const PLAN_LIMITS = {
     media: true,
     images: true,
     videos: false,
-    qrCode: false,
+    qrCode: true,
     customQrLogo: false,
     slideshow: false,
     durationDays: 14,
