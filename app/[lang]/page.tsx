@@ -15,7 +15,7 @@ const planPrices = {
 
 const landingImages = {
   heroBackground:
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=55",
+    "https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&w=1600&q=62",
   hero:
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=58",
   couple:
