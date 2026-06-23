@@ -2,7 +2,26 @@ import type { Locale } from "@/lib/i18n";
 
 export function FAQJsonLd({ lang }: { lang: Locale }) {
   const mainEntity =
-    lang === "fr"
+    lang === "ar"
+      ? [
+          {
+            "@type": "Question",
+            name: "ما هي خريطة الذكريات المخصصة؟",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "هي خريطة تفاعلية تجمع الأماكن المهمة والنصوص والصور ورمز QR للمشاركة بسهولة.",
+            },
+          },
+          {
+            "@type": "Question",
+            name: "هل PinStory فكرة هدية مناسبة للذكرى السنوية؟",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "نعم، صُمم PinStory كهدية عاطفية مخصصة للأزواج والعائلات والمسافرين لاستعادة أجمل اللحظات.",
+            },
+          },
+        ]
+      : lang === "fr"
       ? [
           {
             "@type": "Question",

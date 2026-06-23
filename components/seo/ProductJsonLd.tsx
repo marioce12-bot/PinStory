@@ -7,7 +7,9 @@ export function ProductJsonLd({ lang }: { lang: Locale }) {
     name: "PinStory",
     image: `${process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app"}/images/og-preview.jpg`,
     description:
-      lang === "fr"
+      lang === "ar"
+        ? "أنشئ خريطة ذكريات تفاعلية مخصصة يمكن الوصول إليها عبر رمز QR."
+        : lang === "fr"
         ? "Créez une carte souvenir interactive personnalisée, accessible par QR Code."
         : "Create a personalized interactive memory map, accessible through a QR Code.",
     brand: {
@@ -25,7 +27,7 @@ export function ProductJsonLd({ lang }: { lang: Locale }) {
       },
       {
         "@type": "Offer",
-        name: lang === "fr" ? "Éternel" : "Eternal",
+        name: lang === "ar" ? "أبدي" : lang === "fr" ? "Éternel" : "Eternal",
         price: "39.90",
         priceCurrency: "EUR",
         availability: "https://schema.org/InStock",

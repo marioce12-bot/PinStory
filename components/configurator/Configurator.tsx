@@ -16,9 +16,16 @@ type Dictionary = typeof import("@/dictionaries/fr.json");
 const defaultPoint = (order: number, lang: Locale): MemoryPoint => ({
   id: crypto.randomUUID(),
   order,
-  title: order === 1 ? (lang === "en" ? "The first memory" : "Le premier souvenir") : `${lang === "en" ? "Memory" : "Souvenir"} ${order}`,
+  title:
+    order === 1
+      ? lang === "ar"
+        ? "الذكرى الأولى"
+        : lang === "en"
+          ? "The first memory"
+          : "Le premier souvenir"
+      : `${lang === "ar" ? "ذكرى" : lang === "en" ? "Memory" : "Souvenir"} ${order}`,
   date: "2024-05-12",
-  description: lang === "en" ? "A short sentence about this moment." : "Une petite phrase sur ce moment.",
+  description: lang === "ar" ? "جملة قصيرة عن هذه اللحظة." : lang === "en" ? "A short sentence about this moment." : "Une petite phrase sur ce moment.",
   place_name: order === 1 ? "Tour Eiffel, Paris" : "Paris, France",
   location_query: order === 1 ? "Tour Eiffel, Paris" : "Paris, France",
   longitude: 2.2945 + order * 0.01,
@@ -128,6 +135,8 @@ export function Configurator({
   initialPlan: Plan;
 }) {
   const router = useRouter();
+  const isArabic = lang === "ar";
+  const isEnglish = lang === "en";
   const [isPending, startTransition] = useTransition();
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [memoryLang, setMemoryLang] = useState<Locale>(lang);
@@ -191,7 +200,7 @@ export function Configurator({
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!token) {
       updatePoint(point.id, { place_name: query, location_query: query });
-      setStatus(lang === "en" ? "Mapbox is not configured yet. The place text was saved." : "Mapbox n’est pas encore configuré. Le lieu saisi a été sauvegardé.");
+      setStatus(isArabic ? "Mapbox غير مفعّل حالياً. تم حفظ نص المكان." : isEnglish ? "Mapbox is not configured yet. The place text was saved." : "Mapbox n’est pas encore configuré. Le lieu saisi a été sauvegardé.");
       return;
     }
 
@@ -202,7 +211,7 @@ export function Configurator({
     const feature = result.features?.[0];
 
     if (!feature?.center) {
-      setStatus(lang === "en" ? "No place found. Try a city, address or landmark." : "Aucun lieu trouvé. Essayez une ville, une adresse ou un monument.");
+      setStatus(isArabic ? "لم يتم العثور على مكان. جرّب مدينة أو عنواناً أو معلماً." : isEnglish ? "No place found. Try a city, address or landmark." : "Aucun lieu trouvé. Essayez une ville, une adresse ou un monument.");
       return;
     }
 
@@ -218,28 +227,28 @@ export function Configurator({
     setStatus(null);
 
     if (!navigator.geolocation) {
-      setStatus(lang === "en" ? "Geolocation is not available on this device." : "La géolocalisation n’est pas disponible sur cet appareil.");
+      setStatus(isArabic ? "تحديد الموقع غير متاح على هذا الجهاز." : isEnglish ? "Geolocation is not available on this device." : "La géolocalisation n’est pas disponible sur cet appareil.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         updatePoint(point.id, {
-          place_name: lang === "en" ? "Current position" : "Position actuelle",
-          location_query: lang === "en" ? "Current position" : "Position actuelle",
+          place_name: isArabic ? "الموقع الحالي" : isEnglish ? "Current position" : "Position actuelle",
+          location_query: isArabic ? "الموقع الحالي" : isEnglish ? "Current position" : "Position actuelle",
           longitude: Number(position.coords.longitude.toFixed(5)),
           latitude: Number(position.coords.latitude.toFixed(5)),
         });
       },
-      () => setStatus(lang === "en" ? "Unable to access your position." : "Impossible d’accéder à votre position."),
+      () => setStatus(isArabic ? "تعذر الوصول إلى موقعك." : isEnglish ? "Unable to access your position." : "Impossible d’accéder à votre position."),
     );
   }
 
   function pickLocationFromPreview(longitude: number, latitude: number, label: string) {
     if (!activePoint) return;
     updatePoint(activePoint.id, {
-      place_name: lang === "en" ? "Selected on the map" : label,
-      location_query: lang === "en" ? "Selected on the map" : label,
+      place_name: isArabic ? "تم التحديد على الخريطة" : isEnglish ? "Selected on the map" : label,
+      location_query: isArabic ? "تم التحديد على الخريطة" : isEnglish ? "Selected on the map" : label,
       longitude,
       latitude,
     });
@@ -248,43 +257,45 @@ export function Configurator({
   async function uploadMedia(point: MemoryPoint, file: File | undefined) {
     if (!file) return;
     if (!limits.media) {
-      setStatus(lang === "en" ? "Media is available from the Souvenir plan." : "Les médias sont disponibles à partir de la formule Souvenir.");
+      setStatus(isArabic ? "الوسائط متاحة ابتداءً من خطة تذكار." : isEnglish ? "Media is available from the Souvenir plan." : "Les médias sont disponibles à partir de la formule Souvenir.");
       return;
     }
     if (file.type.startsWith("video/") && !limits.videos) {
-      setStatus(lang === "en" ? "Videos require the Eternal plan." : "Les vidéos nécessitent la formule Éternel.");
+      setStatus(isArabic ? "الفيديوهات تتطلب خطة أبدي." : isEnglish ? "Videos require the Eternal plan." : "Les vidéos nécessitent la formule Éternel.");
       return;
     }
 
     try {
       setUploadingPointId(point.id);
-      setStatus(lang === "en" ? "Optimizing your photo..." : "Optimisation de votre photo...");
+      setStatus(isArabic ? "جاري تحسين الصورة..." : isEnglish ? "Optimizing your photo..." : "Optimisation de votre photo...");
 
       const fileToUpload = file.type.startsWith("image/") ? await compressImageForUpload(file) : file;
-      setStatus(lang === "en" ? "Upload starting..." : "Démarrage de l’upload...");
+      setStatus(isArabic ? "بدء رفع الملف..." : isEnglish ? "Upload starting..." : "Démarrage de l’upload...");
 
       const formData = new FormData();
       formData.append("file", fileToUpload);
       formData.append("plan", plan);
 
       const result = await uploadWithProgress(formData, (percent) => {
-        setStatus(lang === "en" ? `Uploading your memory... ${percent}%` : `Upload de votre souvenir... ${percent}%`);
+        setStatus(isArabic ? `جاري رفع الذكرى... ${percent}%` : isEnglish ? `Uploading your memory... ${percent}%` : `Upload de votre souvenir... ${percent}%`);
       });
 
       if (!result.media_url) {
-        setStatus(result.error || (lang === "en" ? "Upload failed." : "L’upload a échoué."));
+        setStatus(result.error || (isArabic ? "فشل الرفع." : isEnglish ? "Upload failed." : "L’upload a échoué."));
         return;
       }
 
       updatePoint(point.id, { media_url: result.media_url, media_type: result.media_type });
-      setStatus(lang === "en" ? "Photo added." : "Photo ajoutée.");
+      setStatus(isArabic ? "تمت إضافة الصورة." : isEnglish ? "Photo added." : "Photo ajoutée.");
       window.setTimeout(() => setStatus(null), 1400);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Upload failed";
       setStatus(
         lang === "en"
-          ? `${message}. Try a smaller photo or check Cloudinary settings.`
-          : `${message}. Essayez une photo plus légère ou vérifiez Cloudinary.`,
+          ? `${message}. جرّب صورة أصغر أو تحقق من إعدادات Cloudinary.`
+          : isEnglish
+            ? `${message}. Try a smaller photo or check Cloudinary settings.`
+            : `${message}. Essayez une photo plus légère ou vérifiez Cloudinary.`,
       );
     } finally {
       setUploadingPointId(null);
@@ -329,7 +340,7 @@ export function Configurator({
     setStatus(null);
     const auth = getFirebaseClientAuth();
     if (!auth) {
-      setStatus(lang === "en" ? "Google login is not configured yet." : "La connexion Google n’est pas encore configurée.");
+      setStatus(isArabic ? "تسجيل الدخول عبر Google غير مفعّل حالياً." : isEnglish ? "Google login is not configured yet." : "La connexion Google n’est pas encore configurée.");
       return;
     }
 
@@ -343,7 +354,7 @@ export function Configurator({
 
   function continueWithEmail() {
     if (!email) {
-      setStatus(lang === "en" ? "Enter your email first." : "Entrez d’abord votre email.");
+      setStatus(isArabic ? "أدخل بريدك الإلكتروني أولاً." : isEnglish ? "Enter your email first." : "Entrez d’abord votre email.");
       return;
     }
 
@@ -358,11 +369,11 @@ export function Configurator({
         <div className="form-stack">
           <BrandLogo href={`/${lang}`} />
           <h1 className="section-title" style={{ fontSize: "clamp(2.2rem, 5vw, 4rem)" }}>
-            {lang === "en" ? "Build your memory map" : "Construisez votre carte souvenir"}
+            {isArabic ? "أنشئ خريطة ذكرياتك" : isEnglish ? "Build your memory map" : "Construisez votre carte souvenir"}
           </h1>
 
           <div className="form-field">
-            <label>{lang === "en" ? "Plan" : "Formule"}</label>
+            <label>{isArabic ? "الخطة" : isEnglish ? "Plan" : "Formule"}</label>
             <div className="segmented-grid">
               {(["free", "souvenir", "eternal"] as const).map((item) => (
                 <button className={`segment-button ${plan === item ? "active" : ""}`} key={item} onClick={() => updatePlan(item)} type="button">
@@ -373,11 +384,11 @@ export function Configurator({
           </div>
 
           <div className="form-field">
-            <label>{lang === "en" ? "Final map language" : "Langue du souvenir"}</label>
-            <div className="segmented-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              {(["fr", "en"] as const).map((item) => (
+            <label>{isArabic ? "لغة الخريطة النهائية" : isEnglish ? "Final map language" : "Langue du souvenir"}</label>
+            <div className="segmented-grid">
+              {(["fr", "en", "ar"] as const).map((item) => (
                 <button className={`segment-button ${memoryLang === item ? "active" : ""}`} key={item} onClick={() => setMemoryLang(item)} type="button">
-                  {item === "fr" ? "Français" : "English"}
+                  {item === "fr" ? "Français" : item === "en" ? "English" : "العربية"}
                 </button>
               ))}
             </div>
@@ -387,12 +398,12 @@ export function Configurator({
             <label htmlFor="email">Email</label>
             <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="user@example.com" />
             {creatorEmail ? (
-              <small className="field-hint">{lang === "en" ? `Connected as ${creatorEmail}` : `Connecté avec ${creatorEmail}`}</small>
+              <small className="field-hint">{isArabic ? `متصل كـ ${creatorEmail}` : isEnglish ? `Connected as ${creatorEmail}` : `Connecté avec ${creatorEmail}`}</small>
             ) : null}
           </div>
 
           <div className="form-field">
-            <label htmlFor="title">{lang === "en" ? "Map title" : "Titre de la carte"}</label>
+            <label htmlFor="title">{isArabic ? "عنوان الخريطة" : isEnglish ? "Map title" : "Titre de la carte"}</label>
             <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
 
@@ -402,15 +413,17 @@ export function Configurator({
           </div>
 
           <div className="form-field">
-            <label htmlFor="secret-code">{lang === "en" ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
+            <label htmlFor="secret-code">{isArabic ? "رمز سري (اختياري)" : isEnglish ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
             <input
               id="secret-code"
               value={secretCode}
               onChange={(event) => setSecretCode(event.target.value)}
-              placeholder={lang === "en" ? "Example: 2405" : "Exemple : 2405"}
+              placeholder={isArabic ? "مثال: 2405" : isEnglish ? "Example: 2405" : "Exemple : 2405"}
             />
             <small className="field-hint">
               {lang === "en"
+                ? "إذا أضفته، يجب على الزوار كتابته قبل مشاهدة الألبوم من الرابط أو رمز QR."
+                : isEnglish
                 ? "If you add one, visitors must type it before seeing the album from the link or QR Code."
                 : "Si vous en ajoutez un, les visiteurs devront le saisir avant de voir l’album depuis le lien ou le QR Code."}
             </small>
@@ -428,19 +441,19 @@ export function Configurator({
           </div>
 
           <div>
-            <h2>{lang === "en" ? "Memories" : "Souvenirs"}</h2>
+            <h2>{isArabic ? "الذكريات" : isEnglish ? "Memories" : "Souvenirs"}</h2>
             <p className="section-copy" style={{ marginBottom: "1rem" }}>
-              {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {lang === "en" ? "memories used" : "souvenirs utilisés"}
+              {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {isArabic ? "ذكريات مستخدمة" : isEnglish ? "memories used" : "souvenirs utilisés"}
             </p>
             {points.map((point) => (
               <article className={`poi-card-item ${activePointId === point.id ? "active" : ""}`} key={point.id} onFocus={() => setActivePointId(point.id)}>
                 <div className="form-stack">
                   <button className="segment-button" type="button" onClick={() => setActivePointId(point.id)}>
-                    {lang === "en" ? "Edit this memory" : "Modifier ce souvenir"} #{point.order}
+                    {isArabic ? "تعديل هذه الذكرى" : isEnglish ? "Edit this memory" : "Modifier ce souvenir"} #{point.order}
                   </button>
 
                   <div className="form-field">
-                    <label>{lang === "en" ? "Photo or video" : "Photo ou vidéo"}</label>
+                    <label>{isArabic ? "صورة أو فيديو" : isEnglish ? "Photo or video" : "Photo ou vidéo"}</label>
                     {point.media_url ? (
                       <div className="media-preview-card">
                         {point.media_type === "video" ? (
@@ -455,35 +468,45 @@ export function Configurator({
                       {limits.media
                         ? uploadingPointId === point.id
                           ? lang === "en"
+                            ? "جاري الرفع..."
+                            : isEnglish
                             ? "Uploading..."
                             : "Upload en cours..."
                           : limits.videos
                             ? lang === "en"
+                              ? "أضف صورة أو فيديو لهذه الذكرى."
+                              : isEnglish
                               ? "Upload one image or video for this memory."
                               : "Ajoutez une image ou une vidéo pour ce souvenir."
                             : lang === "en"
+                              ? "أضف صورة واحدة لهذه الذكرى."
+                              : isEnglish
                               ? "Upload one photo for this memory."
                               : "Ajoutez une photo pour ce souvenir."
                         : lang === "en"
+                          ? "الوسائط غير مفعلة في المعاينة المجانية."
+                          : isEnglish
                           ? "Media is disabled on the Free preview."
                           : "Les médias sont désactivés sur l’aperçu gratuit."}
                     </small>
                   </div>
 
                   <div className="form-field">
-                    <label>{lang === "en" ? "Place" : "Lieu"}</label>
+                    <label>{isArabic ? "المكان" : isEnglish ? "Place" : "Lieu"}</label>
                     <div className="place-search-row">
                       <input
                         value={point.location_query || point.place_name}
                         onChange={(event) => updatePoint(point.id, { location_query: event.target.value, place_name: event.target.value })}
-                        placeholder={lang === "en" ? "Eiffel Tower, Paris, hotel name..." : "Tour Eiffel, Paris, nom d'hôtel..."}
+                        placeholder={isArabic ? "برج إيفل، باريس، اسم فندق..." : isEnglish ? "Eiffel Tower, Paris, hotel name..." : "Tour Eiffel, Paris, nom d'hôtel..."}
                       />
                       <button className="btn-secondary" type="button" onClick={() => searchPlace(point)}>
-                        {lang === "en" ? "Find" : "Trouver"}
+                        {isArabic ? "بحث" : isEnglish ? "Find" : "Trouver"}
                       </button>
                     </div>
                     <small className="field-hint">
                       {lang === "en"
+                        ? "لا حاجة لإدخال إحداثيات. ابحث، انقر على المعاينة، أو استخدم موقعك الحالي."
+                        : isEnglish
                         ? "No coordinates to type. Search, click the preview map, or use your current position."
                         : "Aucune coordonnée à saisir. Cherchez, cliquez sur l’aperçu ou utilisez votre position."}
                     </small>
@@ -491,15 +514,15 @@ export function Configurator({
 
                   <div className="poi-actions">
                     <button className="btn-secondary" type="button" onClick={() => selectCurrentPosition(point)}>
-                      {lang === "en" ? "Use my position" : "Utiliser ma position"}
+                      {isArabic ? "استخدم موقعي" : isEnglish ? "Use my position" : "Utiliser ma position"}
                     </button>
                     <button className="btn-secondary" type="button" onClick={() => removePoint(point.id)} disabled={points.length === 1}>
-                      {lang === "en" ? "Remove" : "Retirer"}
+                      {isArabic ? "حذف" : isEnglish ? "Remove" : "Retirer"}
                     </button>
                   </div>
 
                   <div className="form-field">
-                    <label>{lang === "en" ? "Title" : "Titre"}</label>
+                    <label>{isArabic ? "العنوان" : isEnglish ? "Title" : "Titre"}</label>
                     <input value={point.title} onChange={(event) => updatePoint(point.id, { title: event.target.value })} />
                   </div>
                   <div className="form-field">
@@ -514,7 +537,7 @@ export function Configurator({
               </article>
             ))}
             <button className="btn-secondary" type="button" onClick={addPoint} disabled={points.length >= limits.maxPoints}>
-              {lang === "en" ? "Add a memory" : "Ajouter un souvenir"}
+              {isArabic ? "إضافة ذكرى" : isEnglish ? "Add a memory" : "Ajouter un souvenir"}
             </button>
           </div>
 
@@ -534,23 +557,25 @@ export function Configurator({
       </aside>
 
       {showIdentityGate ? (
-        <div className="identity-modal-backdrop" role="dialog" aria-modal="true" aria-label={lang === "en" ? "Continue" : "Continuer"}>
+        <div className="identity-modal-backdrop" role="dialog" aria-modal="true" aria-label={isArabic ? "متابعة" : isEnglish ? "Continue" : "Continuer"}>
           <div className="identity-modal">
             <BrandLogo href={`/${lang}`} />
-            <h2>{lang === "en" ? "Save your album" : "Sauvegarder votre album"}</h2>
+            <h2>{isArabic ? "حفظ ألبومك" : isEnglish ? "Save your album" : "Sauvegarder votre album"}</h2>
             <p>
               {lang === "en"
+                ? "تابع باستخدام Google أو البريد الإلكتروني لحفظ ذكرياتك. لا حاجة إلى كلمة مرور."
+                : isEnglish
                 ? "Continue with Google or email to save your memories. No password required."
                 : "Continuez avec Google ou email pour sauvegarder vos souvenirs. Aucun mot de passe requis."}
             </p>
             <button className="btn-cta" type="button" onClick={continueWithGoogle}>
-              {lang === "en" ? "Continue with Google" : "Continuer avec Google"}
+              {isArabic ? "المتابعة باستخدام Google" : isEnglish ? "Continue with Google" : "Continuer avec Google"}
             </button>
             <button className="btn-secondary" type="button" onClick={continueWithEmail}>
-              {lang === "en" ? "Continue with email" : "Continuer avec email"}
+              {isArabic ? "المتابعة بالبريد الإلكتروني" : isEnglish ? "Continue with email" : "Continuer avec email"}
             </button>
             <button className="cookie-button cookie-button-muted" type="button" onClick={() => setShowIdentityGate(false)}>
-              {lang === "en" ? "Cancel" : "Annuler"}
+              {isArabic ? "إلغاء" : isEnglish ? "Cancel" : "Annuler"}
             </button>
           </div>
         </div>

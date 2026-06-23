@@ -38,9 +38,20 @@ export default async function LandingPage({
 
   const dictionary = getDictionary(lang);
   const isEnglish = lang === "en";
-  const otherLang: Locale = isEnglish ? "fr" : "en";
+  const isArabic = lang === "ar";
+  const languageOptions: Array<{ locale: Locale; label: string }> = [
+    { locale: "fr", label: "🇫🇷 FR" },
+    { locale: "en", label: "🇬🇧 EN" },
+    { locale: "ar", label: "🇦🇪 AR" },
+  ];
 
-  const features = isEnglish
+  const features = isArabic
+    ? [
+        ["خريطة ذكريات مخصصة", "ثبّت الأماكن التي صنعت قصة حبك أو رحلاتك أو ذكريات عائلتك."],
+        ["تذكار صور رقمي", "أضف نصوصاً عاطفية وتواريخ وصوراً حسب الخطة المختارة."],
+        ["خريطة ذكريات برمز QR", "شارك رابطاً ثابتاً أو رمز QR أنيقاً للوصول الفوري."],
+      ]
+    : isEnglish
     ? [
         ["Custom memory map", "Pin the places that shaped your relationship, travels or family story."],
         ["Digital photo keepsake", "Add emotional text, dates and photos depending on the selected plan."],
@@ -52,11 +63,20 @@ export default async function LandingPage({
         ["QR Code souvenir", "Partagez un lien stable ou un QR Code premium accessible instantanément."],
       ];
 
-  const steps = isEnglish
+  const steps = isArabic
+    ? ["اختر الخطة واللغة", "أضف الأماكن المهمة", "شارك الخريطة النهائية عبر رابط أو رمز QR"]
+    : isEnglish
     ? ["Choose your plan and language", "Add meaningful places", "Share the final map by link or QR Code"]
     : ["Choisissez la formule et la langue", "Ajoutez vos lieux importants", "Partagez la carte par lien ou QR Code"];
 
-  const faqs = isEnglish
+  const faqs = isArabic
+    ? [
+        ["ما هي خريطة الذكريات المخصصة؟", "هي خريطة تفاعلية تجمع الأماكن والتواريخ والرسائل والصور الاختيارية."],
+        ["هل PinStory فكرة هدية مميزة؟", "نعم، صُمم للأزواج والعائلات والمسافرين الذين يبحثون عن هدية شخصية عاطفية."],
+        ["هل يمكنني إضافة فيديوهات؟", "الفيديوهات متاحة في خطة أبدي."],
+        ["هل تتم فهرسة الخرائط الشخصية في Google؟", "لا. خرائط الذكريات الشخصية مضبوطة كصفحات غير مفهرسة افتراضياً."],
+      ]
+    : isEnglish
     ? [
         ["What is a custom memory map?", "It is an interactive keepsake map combining places, dates, messages and optional media."],
         ["Is PinStory a unique anniversary gift idea?", "Yes, it is designed for couples, families and travelers looking for a personal emotional gift."],
@@ -89,7 +109,11 @@ export default async function LandingPage({
         <nav className="nav-bar" aria-label="Main navigation">
           <BrandLogo href={`/${lang}`} />
           <div className="lang-switch" aria-label="Language selector">
-            <Link href={`/${otherLang}`}>{otherLang.toUpperCase()}</Link>
+            {languageOptions.map((option) => (
+              <Link className={option.locale === lang ? "active" : ""} href={`/${option.locale}`} key={option.locale}>
+                {option.label}
+              </Link>
+            ))}
             <Link href={`/${lang}/create`}>{dictionary.navigation.create}</Link>
           </div>
         </nav>
@@ -112,8 +136,10 @@ export default async function LandingPage({
               className="hero-preview-image"
               src={landingImages.hero}
               alt={
-                isEnglish
+                  isEnglish
                   ? "Joyful travel memory captured as an interactive map"
+                  : isArabic
+                  ? "ذكرى سفر سعيدة محفوظة كخريطة تفاعلية"
                   : "Souvenir de voyage joyeux transformé en carte interactive"
               }
               width={760}
@@ -125,8 +151,15 @@ export default async function LandingPage({
             <div className="preview-map-lines" />
             <article className="floating-memory popup-animated">
               <p className="popup-date">12.05.2024</p>
-              <h3>{isEnglish ? "Where it began" : "Là où tout a commencé"}</h3>
-              <p>{isEnglish ? "A private story mapped into a living gift." : "Une histoire privée transformée en cadeau vivant."}</p>
+              <h3>{isArabic ? "هنا بدأت الحكاية" : isEnglish ? "Where it began" : "Là où tout a commencé"}</h3>
+              <p>
+                {isArabic
+                  ? "قصة خاصة تتحول إلى هدية حيّة."
+                  : isEnglish
+                  ? "Joyful travel memory captured as an interactive map"
+                  : "Souvenir de voyage joyeux transformé en carte interactive"
+              }
+              </p>
             </article>
           </div>
         </div>
@@ -142,6 +175,8 @@ export default async function LandingPage({
               alt={
                 isEnglish
                   ? "Happy couple keeping a relationship memory"
+                  : isArabic
+                  ? "زوجان سعيدان يحتفظان بذكرى جميلة"
                   : "Couple heureux conservant un souvenir de relation"
               }
               width={920}
@@ -151,10 +186,12 @@ export default async function LandingPage({
             />
           </div>
           <div className="showcase-caption popup-animated" data-reveal="slide-right">
-            <p className="popup-date">{isEnglish ? "Live preview" : "Aperçu vivant"}</p>
-            <h3>{isEnglish ? "More than a link: a moment to open" : "Plus qu'un lien : un moment à ouvrir"}</h3>
+            <p className="popup-date">{isArabic ? "معاينة حيّة" : isEnglish ? "Live preview" : "Aperçu vivant"}</p>
+            <h3>{isArabic ? "أكثر من رابط: لحظة تُفتح كهدية" : isEnglish ? "More than a link: a moment to open" : "Plus qu'un lien : un moment à ouvrir"}</h3>
             <p>
-              {isEnglish
+              {isArabic
+                ? "ظهور ناعم وبطاقات أنيقة وعلامات عاطفية على الخريطة تجعل الهدية مؤثرة منذ اللحظة الأولى."
+                : isEnglish
                 ? "A soft animated reveal, premium cards and emotional map markers make the recipient feel the gift instantly."
                 : "Une ouverture animée, des cartes premium et des marqueurs émotionnels donnent immédiatement l'impression d'un vrai cadeau."}
             </p>
@@ -162,16 +199,16 @@ export default async function LandingPage({
         </div>
         <div className="photo-story-grid" aria-label={isEnglish ? "Memory photo examples" : "Exemples de photos souvenirs"}>
           <article className="photo-story-card" data-reveal="slide-left">
-            <Image src={landingImages.travel} alt={isEnglish ? "Friends enjoying a travel memory" : "Amis profitant d'un souvenir de voyage"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
-            <span>{isEnglish ? "Travel" : "Voyage"}</span>
+            <Image src={landingImages.travel} alt={isArabic ? "أصدقاء يستمتعون بذكرى سفر" : isEnglish ? "Friends enjoying a travel memory" : "Amis profitant d'un souvenir de voyage"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
+            <span>{isArabic ? "سفر" : isEnglish ? "Travel" : "Voyage"}</span>
           </article>
           <article className="photo-story-card tall" data-reveal="fade-up">
-            <Image src={landingImages.family} alt={isEnglish ? "Family joy captured as a keepsake" : "Joie familiale capturée comme souvenir"} width={620} height={640} quality={55} sizes="(max-width: 992px) 100vw, 36vw" />
-            <span>{isEnglish ? "Family" : "Famille"}</span>
+            <Image src={landingImages.family} alt={isArabic ? "فرحة عائلية محفوظة كتذكار" : isEnglish ? "Family joy captured as a keepsake" : "Joie familiale capturée comme souvenir"} width={620} height={640} quality={55} sizes="(max-width: 992px) 100vw, 36vw" />
+            <span>{isArabic ? "عائلة" : isEnglish ? "Family" : "Famille"}</span>
           </article>
           <article className="photo-story-card" data-reveal="slide-right">
-            <Image src={landingImages.joy} alt={isEnglish ? "Shared joyful celebration memory" : "Souvenir joyeux d'une célébration partagée"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
-            <span>{isEnglish ? "Joy" : "Joie"}</span>
+            <Image src={landingImages.joy} alt={isArabic ? "ذكرى احتفال مبهجة" : isEnglish ? "Shared joyful celebration memory" : "Souvenir joyeux d'une célébration partagée"} width={620} height={460} quality={55} sizes="(max-width: 992px) 100vw, 30vw" />
+            <span>{isArabic ? "فرح" : isEnglish ? "Joy" : "Joie"}</span>
           </article>
         </div>
         <div className="feature-grid">
@@ -200,16 +237,18 @@ export default async function LandingPage({
         <div data-reveal="slide-left">
           <h2 className="section-title">{dictionary.landing.map_title}</h2>
           <p className="section-copy">
-          {isEnglish
+          {isArabic
+            ? "استخدم PinStory كخريطة سفر تفاعلية أو خريطة علاقة مخصصة أو هدية عاطفية رقمية لذكرى مهمة."
+            : isEnglish
             ? "Use PinStory as an interactive travel map, personalized relationship map or virtual emotional gift for a milestone."
             : "Utilisez PinStory comme carte interactive voyage, carte de couple personnalisée ou cadeau virtuel personnalisé pour une grande étape."}
           </p>
         </div>
         <div className="route-preview-card" data-reveal="slide-right">
-          <Image src={landingImages.travel} alt={isEnglish ? "Interactive travel map souvenir" : "Carte interactive de souvenir de voyage"} width={720} height={520} quality={55} sizes="(max-width: 992px) 100vw, 48vw" />
+          <Image src={landingImages.travel} alt={isArabic ? "خريطة سفر تفاعلية للذكريات" : isEnglish ? "Interactive travel map souvenir" : "Carte interactive de souvenir de voyage"} width={720} height={520} quality={55} sizes="(max-width: 992px) 100vw, 48vw" />
           <div className="route-overlay-card">
-            <strong>{isEnglish ? "Get Directions" : "S'y rendre"}</strong>
-            <span>{isEnglish ? "Open the route from the memory" : "Ouvrir l'itinéraire depuis le souvenir"}</span>
+            <strong>{isArabic ? "اذهب إلى الذكرى" : isEnglish ? "Get Directions" : "S'y rendre"}</strong>
+            <span>{isArabic ? "افتح المسار من داخل الذكرى" : isEnglish ? "Open the route from the memory" : "Ouvrir l'itinéraire depuis le souvenir"}</span>
           </div>
         </div>
       </section>
@@ -222,9 +261,9 @@ export default async function LandingPage({
               <h3>{dictionary.plans[plan]}</h3>
               <p className="price">{planPrices[plan]}</p>
               <ul>
-                <li>{plan === "free" ? "3" : plan === "souvenir" ? "10" : "∞"} {isEnglish ? "points" : "points"}</li>
-                <li>{plan === "eternal" ? (isEnglish ? "Photos and videos" : "Photos et vidéos") : (isEnglish ? "Photos included" : "Photos incluses")}</li>
-                <li>{plan === "free" ? "14 jours" : plan === "souvenir" ? "6 mois" : (isEnglish ? "Lifetime" : "À vie")}</li>
+                <li>{plan === "free" ? "3" : plan === "souvenir" ? "10" : "∞"} {isArabic ? "نقاط" : "points"}</li>
+                <li>{plan === "eternal" ? (isArabic ? "صور وفيديوهات" : isEnglish ? "Photos and videos" : "Photos et vidéos") : (isArabic ? "الصور مشمولة" : isEnglish ? "Photos included" : "Photos incluses")}</li>
+                <li>{plan === "free" ? (isArabic ? "14 يوماً" : "14 jours") : plan === "souvenir" ? (isArabic ? "6 أشهر" : "6 mois") : (isArabic ? "مدى الحياة" : isEnglish ? "Lifetime" : "À vie")}</li>
               </ul>
               <Link className="btn-cta" href={`/${lang}/create?plan=${plan}`}>
                 {dictionary.cta.start}

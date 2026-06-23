@@ -9,14 +9,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
-      alternates: { languages: { fr: `${SITE_URL}/fr`, en: `${SITE_URL}/en` } },
+      alternates: { languages: { fr: `${SITE_URL}/fr`, en: `${SITE_URL}/en`, ar: `${SITE_URL}/ar` } },
     },
     {
       url: `${SITE_URL}/en`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
-      alternates: { languages: { fr: `${SITE_URL}/fr`, en: `${SITE_URL}/en` } },
+      alternates: { languages: { fr: `${SITE_URL}/fr`, en: `${SITE_URL}/en`, ar: `${SITE_URL}/ar` } },
+    },
+    {
+      url: `${SITE_URL}/ar`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 1,
+      alternates: { languages: { fr: `${SITE_URL}/fr`, en: `${SITE_URL}/en`, ar: `${SITE_URL}/ar` } },
     },
   ];
 }

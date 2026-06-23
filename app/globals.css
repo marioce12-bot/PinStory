@@ -311,9 +311,70 @@ button {
 
 .lang-switch {
   display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   color: var(--text-muted);
   font-weight: 700;
+}
+
+.lang-switch a {
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  transition: var(--transition-smooth);
+}
+
+.lang-switch a:hover,
+.lang-switch a.active {
+  background: rgba(0, 234, 154, 0.14);
+  color: var(--text-main);
+}
+
+[dir="rtl"] body {
+  text-align: right;
+}
+
+[dir="rtl"] .landing-hero-bg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .hero-grid,
+[dir="rtl"] .story-showcase,
+[dir="rtl"] .visual-band,
+[dir="rtl"] .configurator-layout {
+  direction: rtl;
+}
+
+[dir="rtl"] .hero-actions,
+[dir="rtl"] .map-link-actions,
+[dir="rtl"] .map-control-buttons,
+[dir="rtl"] .poi-actions,
+[dir="rtl"] .cookie-actions {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .floating-memory {
+  right: auto;
+  left: 2rem;
+}
+
+[dir="rtl"] .route-overlay-card {
+  right: auto;
+  left: 1.25rem;
+}
+
+[dir="rtl"] .photo-story-card span {
+  left: auto;
+  right: 1.25rem;
+}
+
+[dir="rtl"] .configurator-sidebar {
+  border-right: 0;
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[dir="rtl"] .place-search-row {
+  direction: rtl;
 }
 
 .hero-grid {

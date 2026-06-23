@@ -22,11 +22,18 @@ const copy = {
     accept: "Accept",
     iconLabel: "Cookies",
   },
+  ar: {
+    title: "PinStory يحترم خصوصيتك",
+    description: "نحن نستخدم ملفات تعريف الارتباط الأساسية لتأمين مدفوعاتك عبر Stripe وتحسين تجربتك على الخريطة.",
+    decline: "رفض",
+    accept: "قبول",
+    iconLabel: "ملفات تعريف الارتباط",
+  },
 };
 
 export function CookieBanner() {
   const pathname = usePathname();
-  const locale = pathname?.startsWith("/en") ? "en" : "fr";
+  const locale = pathname?.startsWith("/ar") ? "ar" : pathname?.startsWith("/fr") ? "fr" : "en";
   const dictionary = copy[locale];
   const [showBanner, setShowBanner] = useState(false);
 

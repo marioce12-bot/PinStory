@@ -4,14 +4,32 @@ import { getDictionary, isLocale, type Locale } from "@/lib/i18n";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app";
 
+const localeMeta = {
+  fr: {
+    og: "fr_FR",
+    alt: "Aperçu de la carte interactive PinStory",
+  },
+  en: {
+    og: "en_US",
+    alt: "Preview of the PinStory interactive memory map",
+  },
+  ar: {
+    og: "ar_AR",
+    alt: "معاينة خريطة الذكريات التفاعلية من PinStory",
+  },
+} satisfies Record<Locale, { og: string; alt: string }>;
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  const safeLang: Locale = lang === "en" ? "en" : "fr";
+  const safeLang: Locale = isLocale(lang) ? lang : "en";
   const dictionary = getDictionary(safeLang);
+  const alternates = Object.entries(localeMeta)
+    .filter(([locale]) => locale !== safeLang)
+    .map(([, meta]) => meta.og);
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -22,14 +40,15 @@ export async function generateMetadata({
       languages: {
         "fr-FR": "/fr",
         "en-US": "/en",
-        "x-default": "/fr",
+        "ar": "/ar",
+        "x-default": "/en",
       },
     },
     openGraph: {
       type: "website",
       siteName: "PinStory",
-      locale: safeLang === "fr" ? "fr_FR" : "en_US",
-      alternateLocale: safeLang === "fr" ? ["en_US"] : ["fr_FR"],
+      locale: localeMeta[safeLang].og,
+      alternateLocale: alternates,
       title: dictionary.seo.title,
       description: dictionary.seo.description,
       url: `${SITE_URL}/${safeLang}`,
@@ -38,10 +57,7 @@ export async function generateMetadata({
           url: "/images/og-preview.jpg",
           width: 1200,
           height: 630,
-          alt:
-            safeLang === "fr"
-              ? "Aperçu de la carte interactive PinStory"
-              : "Preview of the PinStory interactive memory map",
+          alt: localeMeta[safeLang].alt,
         },
       ],
     },
