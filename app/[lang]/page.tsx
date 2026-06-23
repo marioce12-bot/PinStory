@@ -56,13 +56,13 @@ export default async function LandingPage({
   const faqs = isEnglish
     ? [
         ["What is a custom memory map?", "It is an interactive keepsake map combining places, dates, messages and optional media."],
-        ["Is MyInstants a unique anniversary gift idea?", "Yes, it is designed for couples, families and travelers looking for a personal emotional gift."],
+        ["Is PinStory a unique anniversary gift idea?", "Yes, it is designed for couples, families and travelers looking for a personal emotional gift."],
         ["Can I add videos?", "Videos are available on the Eternal plan."],
         ["Are public maps indexed by Google?", "No. Personal memory maps are configured as noindex by default."],
       ]
     : [
         ["Qu’est-ce qu’une carte souvenir personnalisée ?", "C’est une carte interactive qui réunit lieux, dates, messages et médias selon votre formule."],
-        ["Est-ce une idée cadeau originale couple ?", "Oui, MyInstants est pensé pour un anniversaire de rencontre, un mariage ou un voyage."],
+        ["Est-ce une idée cadeau originale couple ?", "Oui, PinStory est pensé pour un anniversaire de rencontre, un mariage ou un voyage."],
         ["Puis-je ajouter des vidéos ?", "Les vidéos sont disponibles avec la formule Éternel."],
         ["Les cartes personnelles sont-elles indexées ?", "Non. Les cartes souvenir publiques sont en noindex par défaut."],
       ];
@@ -77,8 +77,8 @@ export default async function LandingPage({
           <Link href={`/${lang}`} className="brand-mark">
             <Image
               className="brand-logo"
-              src="/images/myinstants-logo.jpeg"
-              alt="MyInstants logo"
+              src="/images/pinstory-logo.jpeg"
+              alt="PinStory logo"
               width={44}
               height={44}
               priority
@@ -195,8 +195,8 @@ export default async function LandingPage({
           <h2 className="section-title">{dictionary.landing.map_title}</h2>
           <p className="section-copy">
           {isEnglish
-            ? "Use MyInstants as an interactive travel map, personalized relationship map or virtual emotional gift for a milestone."
-            : "Utilisez MyInstants comme carte interactive voyage, carte de couple personnalisée ou cadeau virtuel personnalisé pour une grande étape."}
+            ? "Use PinStory as an interactive travel map, personalized relationship map or virtual emotional gift for a milestone."
+            : "Utilisez PinStory comme carte interactive voyage, carte de couple personnalisée ou cadeau virtuel personnalisé pour une grande étape."}
           </p>
         </div>
         <div className="route-preview-card" data-reveal="slide-right">
@@ -240,7 +240,7 @@ export default async function LandingPage({
         </div>
       </section>
 
-      <footer className="footer">© 2026 MyInstants. {dictionary.brand.tagline}.</footer>
+      <footer className="footer">© 2026 PinStory. {dictionary.brand.tagline}.</footer>
     </main>
   );
 }

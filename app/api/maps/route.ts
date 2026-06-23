@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       lang: validation.lang,
       plan: validation.plan,
       theme_style: validation.theme,
-      title: String(data.title || "MyInstants"),
+      title: String(data.title || "PinStory"),
       message: String(data.message || ""),
       created_at: createdAt.toISOString(),
       expires_at: expiresAt,

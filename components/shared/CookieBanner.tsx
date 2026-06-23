@@ -7,7 +7,7 @@ type ConsentChoice = "accepted" | "declined";
 
 const copy = {
   fr: {
-    title: "MyInstants respecte votre vie privée",
+    title: "PinStory respecte votre vie privée",
     description:
       "Nous utilisons des cookies essentiels pour sécuriser vos paiements avec Stripe et améliorer votre expérience sur la carte.",
     decline: "Refuser",
@@ -15,7 +15,7 @@ const copy = {
     iconLabel: "Cookies",
   },
   en: {
-    title: "MyInstants respects your privacy",
+    title: "PinStory respects your privacy",
     description:
       "We use essential cookies to secure Stripe payments and improve your experience on the interactive map.",
     decline: "Decline",
@@ -43,7 +43,7 @@ export function CookieBanner() {
     setShowBanner(false);
 
     window.dispatchEvent(
-      new CustomEvent("myinstants:cookie-consent", {
+      new CustomEvent("pinstory:cookie-consent", {
         detail: { choice },
       }),
     );

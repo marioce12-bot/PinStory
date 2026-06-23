@@ -47,7 +47,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
   const [showQr, setShowQr] = useState(false);
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const currentPoint = map.points[activeIndex] || map.points[0];
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.myinstantsmap.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app";
   const publicUrl = `${appUrl}/map/${map.id}`;
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
       {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
       <div className="map-ui-overlay">
         <header className="ui-card-header">
-          <p className="popup-date">MyInstants</p>
+          <p className="popup-date">PinStory</p>
           <h1 className="popup-title">{map.title}</h1>
           <p>{map.message}</p>
         </header>

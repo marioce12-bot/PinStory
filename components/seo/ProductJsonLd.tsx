@@ -4,15 +4,15 @@ export function ProductJsonLd({ lang }: { lang: Locale }) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: "MyInstants",
-    image: "https://www.myinstantsmap.com/images/og-preview.jpg",
+    name: "PinStory",
+    image: `${process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app"}/images/og-preview.jpg`,
     description:
       lang === "fr"
         ? "Créez une carte souvenir interactive personnalisée, accessible par QR Code."
         : "Create a personalized interactive memory map, accessible through a QR Code.",
     brand: {
       "@type": "Brand",
-      name: "MyInstants",
+      name: "PinStory",
     },
     offers: [
       {
@@ -21,7 +21,7 @@ export function ProductJsonLd({ lang }: { lang: Locale }) {
         price: "9.90",
         priceCurrency: "EUR",
         availability: "https://schema.org/InStock",
-        url: `https://www.myinstantsmap.com/${lang}`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app"}/${lang}`,
       },
       {
         "@type": "Offer",
@@ -29,7 +29,7 @@ export function ProductJsonLd({ lang }: { lang: Locale }) {
         price: "39.90",
         priceCurrency: "EUR",
         availability: "https://schema.org/InStock",
-        url: `https://www.myinstantsmap.com/${lang}`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app"}/${lang}`,
       },
     ],
   };

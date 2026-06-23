@@ -6,7 +6,7 @@ export function getDemoMap(id: string, lang: Locale = "fr"): MemoryMap {
 
   return {
     id,
-    client_email: "demo@myinstantsmap.com",
+    client_email: "demo@pinstory.app",
     lang,
     plan: "eternal",
     theme_style: "dark-luxe",

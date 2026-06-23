@@ -16,8 +16,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.myinstantsmap.com"),
-  title: "MyInstants",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app"),
+  title: "PinStory",
   description: "Create personalized interactive memory maps with QR Codes.",
 };
 

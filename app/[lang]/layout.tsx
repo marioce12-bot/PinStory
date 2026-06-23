@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getDictionary, isLocale, type Locale } from "@/lib/i18n";
 
-const SITE_URL = "https://www.myinstantsmap.com";
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pinstory.app";
 
 export async function generateMetadata({
   params,
@@ -27,7 +27,7 @@ export async function generateMetadata({
     },
     openGraph: {
       type: "website",
-      siteName: "MyInstants",
+      siteName: "PinStory",
       locale: safeLang === "fr" ? "fr_FR" : "en_US",
       alternateLocale: safeLang === "fr" ? ["en_US"] : ["fr_FR"],
       title: dictionary.seo.title,
@@ -40,8 +40,8 @@ export async function generateMetadata({
           height: 630,
           alt:
             safeLang === "fr"
-              ? "Aperçu de la carte interactive MyInstants"
-              : "Preview of the MyInstants interactive memory map",
+              ? "Aperçu de la carte interactive PinStory"
+              : "Preview of the PinStory interactive memory map",
         },
       ],
     },

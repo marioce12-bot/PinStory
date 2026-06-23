@@ -25,7 +25,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap> {
     lang: map.lang,
     plan: map.plan,
     theme_style: map.theme_style,
-    title: map.title || "MyInstants",
+    title: map.title || "PinStory",
     message: map.message || "",
     created_at: map.created_at,
     expires_at: map.expires_at,
@@ -58,20 +58,20 @@ export async function generateMetadata({
   const isEnglish = map.lang === "en";
 
   return {
-    title: `${map.title || (isEnglish ? "Your memory map" : "Votre carte souvenir")} | MyInstants`,
+    title: `${map.title || (isEnglish ? "Your memory map" : "Votre carte souvenir")} | PinStory`,
     description: isEnglish
-      ? "Discover an interactive memory map created with MyInstants."
-      : "Découvrez une carte souvenir interactive créée avec MyInstants.",
+      ? "Discover an interactive memory map created with PinStory."
+      : "Découvrez une carte souvenir interactive créée avec PinStory.",
     robots: { index: false, follow: true },
     openGraph: {
-      title: `${map.title} | MyInstants`,
+      title: `${map.title} | PinStory`,
       description: map.message || (isEnglish ? "A story mapped on an interactive memory map." : "Une histoire gravée sur une carte interactive."),
       images: [
         {
           url: "/images/og-preview.jpg",
           width: 1200,
           height: 630,
-          alt: isEnglish ? "MyInstants memory map" : "Carte souvenir interactive MyInstants",
+          alt: isEnglish ? "PinStory memory map" : "Carte souvenir interactive PinStory",
         },
       ],
     },

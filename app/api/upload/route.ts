@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   const upload = await new Promise<{ secure_url: string; resource_type: string }>((resolve, reject) => {
     cloudinary.uploader
-      .upload_stream({ folder: "myinstants", resource_type: "auto" }, (error, result) => {
+      .upload_stream({ folder: "pinstory", resource_type: "auto" }, (error, result) => {
         if (error || !result) reject(error || new Error("Upload failed."));
         else resolve({ secure_url: result.secure_url, resource_type: result.resource_type });
       })

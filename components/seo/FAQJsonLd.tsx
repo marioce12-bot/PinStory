@@ -14,10 +14,10 @@ export function FAQJsonLd({ lang }: { lang: Locale }) {
           },
           {
             "@type": "Question",
-            name: "MyInstants est-il une bonne idée cadeau pour un couple ?",
+            name: "PinStory est-il une bonne idée cadeau pour un couple ?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Oui, MyInstants permet de créer une carte émotionnelle retraçant une rencontre, un voyage, un anniversaire ou une histoire d’amour.",
+              text: "Oui, PinStory permet de créer une carte émotionnelle retraçant une rencontre, un voyage, un anniversaire ou une histoire d’amour.",
             },
           },
         ]
@@ -32,10 +32,10 @@ export function FAQJsonLd({ lang }: { lang: Locale }) {
           },
           {
             "@type": "Question",
-            name: "Is MyInstants a good anniversary gift idea?",
+            name: "Is PinStory a good anniversary gift idea?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Yes, MyInstants is designed as a unique anniversary gift idea for couples, families and travelers who want to relive meaningful memories.",
+              text: "Yes, PinStory is designed as a unique anniversary gift idea for couples, families and travelers who want to relive meaningful memories.",
             },
           },
         ];
