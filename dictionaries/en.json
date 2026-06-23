@@ -1,0 +1,47 @@
+{
+  "brand": {
+    "name": "MyInstants",
+    "tagline": "Turn your memories into a living map"
+  },
+  "seo": {
+    "title": "MyInstants | Create Your Unique Interactive Memory Map",
+    "description": "Map your most beautiful moments on a personalized interactive map. The perfect emotional gift, instantly accessible via a unique QR Code."
+  },
+  "navigation": {
+    "create": "Create a map",
+    "pricing": "Pricing",
+    "preview": "Preview"
+  },
+  "landing": {
+    "eyebrow": "Virtual emotional gift with a QR Code memory map",
+    "hero_title": "Create a custom memory map to share your most meaningful moments",
+    "hero_copy": "MyInstants turns places, photos and messages into an interactive travel map, personalized relationship map or family keepsake. A unique anniversary gift idea and digital photo keepsake built to be shared.",
+    "primary_cta": "Create my memory",
+    "secondary_cta": "See plans",
+    "emotional_title": "The perfect emotional gift for couples, families and travelers",
+    "emotional_copy": "Every point becomes a chapter of your story: a first meeting, a promise, a trip or a new beginning. Your virtual emotional gift stays accessible through a private link or premium QR Code.",
+    "how_title": "How does MyInstants work?",
+    "map_title": "An interactive travel, love or family map",
+    "pricing_title": "Choose your plan",
+    "faq_title": "Frequently asked questions"
+  },
+  "plans": {
+    "free": "Free Preview",
+    "souvenir": "Souvenir",
+    "eternal": "Eternal"
+  },
+  "map": {
+    "next_point": "Next step",
+    "previous_point": "Previous step",
+    "mode_diaporama": "Live Frame Mode",
+    "open_qr": "Show QR Code",
+    "expired": "This memory is no longer available",
+    "share": "Share"
+  },
+  "cta": {
+    "start": "Create my memory",
+    "continue": "Continue",
+    "checkout": "Confirm and pay",
+    "save": "Save"
+  }
+}

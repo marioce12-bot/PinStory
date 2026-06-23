@@ -1,0 +1,47 @@
+{
+  "brand": {
+    "name": "MyInstants",
+    "tagline": "Transformez vos souvenirs en carte vivante"
+  },
+  "seo": {
+    "title": "MyInstants | Créez votre Carte Souvenir Interactive Unique",
+    "description": "Gravez vos plus beaux moments sur une carte interactive personnalisée. Le cadeau émotionnel parfait, accessible instantanément par un QR Code unique."
+  },
+  "navigation": {
+    "create": "Créer une carte",
+    "pricing": "Tarifs",
+    "preview": "Aperçu"
+  },
+  "landing": {
+    "eyebrow": "Cadeau virtuel personnalisé avec QR Code souvenir",
+    "hero_title": "Créez une carte souvenir personnalisée à offrir en quelques minutes",
+    "hero_copy": "MyInstants transforme vos lieux, photos et messages en carte interactive voyage, amour ou famille. Une idée cadeau originale couple pour un anniversaire de rencontre, un mariage ou un souvenir digital à offrir.",
+    "primary_cta": "Créer mon souvenir",
+    "secondary_cta": "Voir les offres",
+    "emotional_title": "Le cadeau émotionnel parfait pour les couples, familles et voyageurs",
+    "emotional_copy": "Chaque point devient une étape de votre histoire : une rencontre, une promesse, un voyage ou une naissance. Votre tableau connecté photos souvenirs reste accessible depuis un lien unique ou un QR Code premium.",
+    "how_title": "Comment fonctionne MyInstants ?",
+    "map_title": "Une carte interactive voyage, amour ou famille",
+    "pricing_title": "Choisissez votre formule",
+    "faq_title": "Questions fréquentes"
+  },
+  "plans": {
+    "free": "Aperçu Gratuit",
+    "souvenir": "Souvenir",
+    "eternal": "Éternel"
+  },
+  "map": {
+    "next_point": "Étape suivante",
+    "previous_point": "Étape précédente",
+    "mode_diaporama": "Mode Tableau Vivant",
+    "open_qr": "Afficher le QR Code",
+    "expired": "Ce souvenir n’est plus disponible",
+    "share": "Partager"
+  },
+  "cta": {
+    "start": "Créer mon souvenir",
+    "continue": "Continuer",
+    "checkout": "Valider et payer",
+    "save": "Sauvegarder"
+  }
+}
