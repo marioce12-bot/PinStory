@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FAQJsonLd } from "@/components/seo/FAQJsonLd";
@@ -69,11 +70,11 @@ export default async function LandingPage({
         </nav>
 
         <div className="hero-grid">
-          <div>
+          <div className="hero-copy-block animate-rise">
             <span className="eyebrow">{dictionary.landing.eyebrow}</span>
             <h1 className="hero-title">{dictionary.landing.hero_title}</h1>
             <p className="hero-copy">{dictionary.landing.hero_copy}</p>
-            <div className="hero-actions">
+            <div className="hero-actions animate-rise-delayed">
               <Link className="btn-cta" href={`/${lang}/create`}>
                 {dictionary.landing.primary_cta}
               </Link>
@@ -82,7 +83,19 @@ export default async function LandingPage({
               </a>
             </div>
           </div>
-          <div className="memory-card-preview" aria-label={dictionary.navigation.preview}>
+          <div className="memory-card-preview animate-float-in" aria-label={dictionary.navigation.preview}>
+            <Image
+              className="hero-preview-image"
+              src="/images/memory-map-preview.svg"
+              alt={
+                isEnglish
+                  ? "Premium interactive memory map preview"
+                  : "Aperçu premium d'une carte souvenir interactive"
+              }
+              width={760}
+              height={760}
+              priority
+            />
             <div className="preview-map-lines" />
             <article className="floating-memory popup-animated">
               <p className="popup-date">12.05.2024</p>
@@ -96,6 +109,29 @@ export default async function LandingPage({
       <section className="section">
         <h2 className="section-title">{dictionary.landing.emotional_title}</h2>
         <p className="section-copy">{dictionary.landing.emotional_copy}</p>
+        <div className="story-showcase">
+          <div className="showcase-image-card showcase-image-card-large">
+            <Image
+              src="/images/couple-keepsake.svg"
+              alt={
+                isEnglish
+                  ? "Couple discovering a digital photo keepsake"
+                  : "Couple découvrant un tableau connecté de souvenirs"
+              }
+              width={920}
+              height={620}
+            />
+          </div>
+          <div className="showcase-caption popup-animated">
+            <p className="popup-date">{isEnglish ? "Live preview" : "Aperçu vivant"}</p>
+            <h3>{isEnglish ? "More than a link: a moment to open" : "Plus qu'un lien : un moment à ouvrir"}</h3>
+            <p>
+              {isEnglish
+                ? "A soft animated reveal, premium cards and emotional map markers make the recipient feel the gift instantly."
+                : "Une ouverture animée, des cartes premium et des marqueurs émotionnels donnent immédiatement l'impression d'un vrai cadeau."}
+            </p>
+          </div>
+        </div>
         <div className="feature-grid">
           {features.map(([title, copy]) => (
             <article className="surface-card" key={title}>

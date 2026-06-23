@@ -132,6 +132,33 @@ button {
     linear-gradient(135deg, #ffffff 0%, #f8f9fa 42%, #eef9f5 100%);
 }
 
+.landing-hero::before,
+.landing-hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.landing-hero::before {
+  width: 18rem;
+  height: 18rem;
+  left: -5rem;
+  top: 18rem;
+  background: rgba(255, 183, 3, 0.18);
+  animation: ambientDrift 11s ease-in-out infinite alternate;
+}
+
+.landing-hero::after {
+  width: 22rem;
+  height: 22rem;
+  right: -7rem;
+  bottom: -8rem;
+  background: rgba(0, 234, 154, 0.18);
+  animation: ambientDrift 13s ease-in-out infinite alternate-reverse;
+}
+
 .nav-bar,
 .hero-grid,
 .section,
@@ -176,6 +203,13 @@ button {
   grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
   gap: clamp(2rem, 6vw, 5rem);
   align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-copy-block {
+  position: relative;
+  z-index: 2;
 }
 
 .eyebrow {
@@ -230,6 +264,17 @@ button {
   overflow: hidden;
 }
 
+.hero-preview-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.92;
+  transform: scale(1.03);
+  animation: slowMapZoom 12s ease-in-out infinite alternate;
+}
+
 .memory-card-preview::before {
   content: "";
   position: absolute;
@@ -237,6 +282,7 @@ button {
   background:
     linear-gradient(120deg, rgba(0, 234, 154, 0.2), transparent 45%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 22px);
+  z-index: 1;
 }
 
 .preview-map-lines {
@@ -249,6 +295,8 @@ button {
     radial-gradient(circle at 63% 48%, var(--color-premium) 0 0.45rem, transparent 0.5rem),
     radial-gradient(circle at 48% 74%, #fff 0 0.38rem, transparent 0.43rem),
     linear-gradient(150deg, transparent 0 35%, rgba(255, 255, 255, 0.16) 35% 36%, transparent 36% 100%);
+  z-index: 2;
+  animation: mapLinePulse 3.8s ease-in-out infinite;
 }
 
 .floating-memory {
@@ -262,6 +310,7 @@ button {
   color: var(--text-main);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(14px);
+  z-index: 3;
 }
 
 .floating-memory h3 {
@@ -284,6 +333,56 @@ button {
   color: var(--text-muted);
   font-size: 1.1rem;
   line-height: 1.8;
+}
+
+.story-showcase {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-top: 2rem;
+}
+
+.showcase-image-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 34px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.showcase-image-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showcase-image-card:hover img {
+  transform: scale(1.035);
+}
+
+.showcase-caption {
+  align-self: end;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 34px;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(238, 249, 245, 0.9));
+  box-shadow: var(--shadow-md);
+}
+
+.showcase-caption h3 {
+  margin-bottom: 0.75rem;
+  font-family: var(--font-heading), serif;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.showcase-caption p:last-child {
+  color: var(--text-muted);
+  line-height: 1.7;
 }
 
 .feature-grid,
@@ -610,6 +709,75 @@ button {
   animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes heroRise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(36px) rotate(2deg) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes slowMapZoom {
+  from {
+    transform: scale(1.03) translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: scale(1.09) translate3d(-1.5%, -1.5%, 0);
+  }
+}
+
+@keyframes mapLinePulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes ambientDrift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(2rem, -1.5rem, 0) scale(1.08);
+  }
+}
+
+.animate-rise {
+  animation: heroRise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-rise-delayed {
+  animation: heroRise 0.8s 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-float-in {
+  animation: floatIn 0.9s 0.12s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @keyframes pulseMarker {
   0% {
     transform: scale(1);
@@ -643,6 +811,7 @@ button {
   .pricing-grid,
   .steps-grid,
   .faq-grid,
+  .story-showcase,
   .configurator-layout {
     grid-template-columns: 1fr;
   }
@@ -673,6 +842,10 @@ button {
     min-height: 420px;
   }
 
+  .story-showcase {
+    margin-top: 1.5rem;
+  }
+
   .segmented-grid {
     grid-template-columns: 1fr;
   }
@@ -688,5 +861,16 @@ button {
   .ui-card-header,
   .ui-card-controls {
     padding: 0.85rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
