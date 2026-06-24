@@ -2,14 +2,13 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import "maplibre-gl/dist/maplibre-gl.css";
+import "leaflet/dist/leaflet.css";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
+import L from "leaflet";
 import { BackgroundMusic } from "@/components/map/BackgroundMusic";
 import { BrandLogo } from "@/components/shared/BrandLogo";
-import { getMapTilerStyle } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
@@ -92,8 +91,8 @@ function getCopy(lang: MemoryMap["lang"]) {
 
 export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<HTMLElement[]>([]);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
   const flyTimeoutRef = useRef<number | null>(null);
   const travelTimeoutsRef = useRef<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -102,7 +101,6 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const [hasInteractiveMap, setHasInteractiveMap] = useState(false);
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
-  const mapTilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   const currentPoint = map.points[activeIndex] || map.points[0];
   const copy = useMemo(() => getCopy(map.lang), [map.lang]);
 
@@ -110,33 +108,38 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
     if (!containerRef.current || mapRef.current || map.points.length === 0) return;
 
     const firstPoint = map.points[0];
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: getMapTilerStyle(map.theme_style, mapTilerKey),
-      center: [firstPoint.longitude, firstPoint.latitude],
+    const instance = L.map(containerRef.current, {
+      center: [firstPoint.latitude, firstPoint.longitude],
       zoom: 3,
-      pitch: 0,
+      zoomControl: false,
+      attributionControl: true,
+      worldCopyJump: true,
     });
 
-    instance.once("load", () => setHasInteractiveMap(true));
-    instance.once("error", () => setHasInteractiveMap(false));
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(instance);
+
+    L.control.zoom({ position: "bottomright" }).addTo(instance);
 
     markersRef.current = map.points.map((point, index) => {
-      const markerElement = document.createElement("button");
-      markerElement.type = "button";
-      markerElement.className = "custom-marker cinematic-marker";
-      markerElement.setAttribute("aria-label", point.title || point.place_name);
-      markerElement.addEventListener("click", () => {
+      const icon = L.divIcon({
+        className: "leaflet-cinematic-marker-wrap",
+        html: `<button type="button" class="custom-marker cinematic-marker" aria-label="${point.title || point.place_name}"></button>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      const marker = L.marker([point.latitude, point.longitude], { icon }).addTo(instance);
+      marker.on("click", () => {
         setActiveIndex(index);
         setPhase("modal");
       });
-
-      new maplibregl.Marker({ element: markerElement }).setLngLat([point.longitude, point.latitude]).addTo(instance);
-      return markerElement;
+      return marker;
     });
 
-    instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     mapRef.current = instance;
+    setHasInteractiveMap(true);
 
     return () => {
       if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
@@ -146,11 +149,14 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       markersRef.current = [];
       setHasInteractiveMap(false);
     };
-  }, [map.points, map.theme_style, mapTilerKey]);
+  }, [map.points]);
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
-      marker.classList.toggle("marker-active", index === activeIndex && (phase === "pin" || phase === "modal"));
+      marker
+        .getElement()
+        ?.querySelector(".cinematic-marker")
+        ?.classList.toggle("marker-active", index === activeIndex && (phase === "pin" || phase === "modal"));
     });
   }, [activeIndex, phase]);
 
@@ -184,14 +190,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
     if (mapRef.current) {
       // Phase 1: décollage brutal vers une vue espace.
-      mapRef.current.easeTo({
-        center: mapRef.current.getCenter(),
-        zoom: 1,
-        pitch: 0,
-        bearing: 0,
-        duration: 1200,
-        essential: true,
-      });
+      mapRef.current.flyTo(mapRef.current.getCenter(), 1, { duration: 1.2, easeLinearity: 0.2 });
 
       queueTravelStep(() => {
         setTravelStage("globe");
@@ -199,29 +198,13 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
       // Phase 2: traversée latérale à hauteur espace vers la destination.
       queueTravelStep(() => {
-        mapRef.current?.easeTo({
-          center: [point.longitude, point.latitude],
-          zoom: 1,
-          pitch: 0,
-          bearing: index % 2 === 0 ? 58 : -58,
-          duration: 800,
-          essential: true,
-        });
+        mapRef.current?.flyTo([point.latitude, point.longitude], 1, { duration: 0.8, easeLinearity: 0.18 });
       }, 1200);
 
       // Phase 3: plongée rapide vers le sol avec accélération.
       queueTravelStep(() => {
         setTravelStage("dive");
-        mapRef.current?.flyTo({
-          center: [point.longitude, point.latitude],
-          zoom: 15,
-          duration: 2000,
-          pitch: 55,
-          bearing: index % 2 === 0 ? 32 : -32,
-          curve: 1.35,
-          easing: (t) => t * t,
-          essential: true,
-        });
+        mapRef.current?.flyTo([point.latitude, point.longitude], 15, { duration: 2, easeLinearity: 0.08 });
       }, 2000);
 
       flyTimeoutRef.current = window.setTimeout(() => {
@@ -251,9 +234,8 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
     setPhase("final");
     if (mapRef.current && map.points.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
-      map.points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
-      mapRef.current.fitBounds(bounds, { padding: 90, duration: 3500, pitch: 0, bearing: 0 });
+      const bounds = L.latLngBounds(map.points.map((point) => [point.latitude, point.longitude] as [number, number]));
+      mapRef.current.flyToBounds(bounds, { padding: [90, 90], duration: 3.5 });
     }
   }
 
