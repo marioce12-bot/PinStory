@@ -3,10 +3,38 @@
 import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
-const VIDEO_AUDIO_UPLOAD_TIMEOUT_MS = 90000;
+const VIDEO_AUDIO_UPLOAD_TIMEOUT_MS = 180000;
+
+type CloudinarySignResponse = {
+  cloudName?: string;
+  apiKey?: string;
+  folder?: string;
+  timestamp?: string;
+  signature?: string;
+  error?: string;
+};
 
 function uploadVideoWithProgress(file: File, onProgress: (percent: number) => void) {
-  return new Promise<{ media_url?: string; error?: string }>((resolve, reject) => {
+  return new Promise<{ media_url?: string; error?: string }>(async (resolve, reject) => {
+    let signPayload: CloudinarySignResponse;
+
+    try {
+      const signResponse = await fetch("/api/cloudinary/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "pinstory-music" }),
+      });
+      signPayload = (await signResponse.json()) as CloudinarySignResponse;
+
+      if (!signResponse.ok || !signPayload.cloudName || !signPayload.apiKey || !signPayload.timestamp || !signPayload.signature) {
+        reject(new Error(signPayload.error || "Unable to sign Cloudinary upload"));
+        return;
+      }
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error("Unable to prepare Cloudinary upload"));
+      return;
+    }
+
     const request = new XMLHttpRequest();
     const timeout = window.setTimeout(() => {
       request.abort();
@@ -15,9 +43,12 @@ function uploadVideoWithProgress(file: File, onProgress: (percent: number) => vo
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("plan", "audio");
+    formData.append("api_key", signPayload.apiKey);
+    formData.append("timestamp", signPayload.timestamp);
+    formData.append("signature", signPayload.signature);
+    formData.append("folder", signPayload.folder || "pinstory-music");
 
-    request.open("POST", "/api/upload");
+    request.open("POST", `https://api.cloudinary.com/v1_1/${signPayload.cloudName}/video/upload`);
     request.upload.onprogress = (event) => {
       if (!event.lengthComputable) return;
       onProgress(Math.round((event.loaded / event.total) * 100));
@@ -25,12 +56,12 @@ function uploadVideoWithProgress(file: File, onProgress: (percent: number) => vo
     request.onload = () => {
       window.clearTimeout(timeout);
       try {
-        const payload = JSON.parse(request.responseText || "{}") as { media_url?: string; error?: string };
+        const payload = JSON.parse(request.responseText || "{}") as { secure_url?: string; error?: { message?: string } };
         if (request.status >= 200 && request.status < 300) {
-          resolve(payload);
+          resolve({ media_url: payload.secure_url });
           return;
         }
-        reject(new Error(payload.error || "Video upload failed"));
+        reject(new Error(payload.error?.message || "Video upload failed"));
       } catch {
         reject(new Error(`Invalid upload response (${request.status})`));
       }
