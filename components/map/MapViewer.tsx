@@ -27,8 +27,6 @@ const UNSPLASH_FLASH_IMAGES = [
   "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=480&q=60",
 ];
 
-const HANDS_MAP_IMAGE = "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=70";
-
 function getDirectionsUrl(point: MemoryMap["points"][number]) {
   const destination = point.place_name || `${point.latitude},${point.longitude}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
@@ -367,7 +365,6 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
         <div className="story-map-paper">
           <div className="map-container-fullscreen story-map-container" ref={containerRef} />
         </div>
-        {act === "map" || act === "modal" || act === "final" ? <img className="hands-map-overlay" src={HANDS_MAP_IMAGE} alt="" /> : null}
       </div>
 
       <div className="cinematic-topbar">

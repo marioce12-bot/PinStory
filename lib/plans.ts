@@ -65,17 +65,17 @@ export function getPlanExpiry(plan: Plan, createdAt = new Date()) {
 }
 
 export function getMapTilerStyle(theme: string, key?: string) {
-  if (!key) return "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+  if (!key) return "https://demotiles.maplibre.org/style.json";
 
   switch (theme) {
     case "dark-luxe":
-      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
     case "pastel":
-      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
     case "premium-gold":
-      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
     case "minimalist":
     default:
-      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
   }
 }
