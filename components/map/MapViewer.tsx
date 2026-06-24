@@ -279,6 +279,25 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
     schedule(() => revealMap(index), 8500 * factor);
   }
 
+  function restartJourney() {
+    clearTimers();
+    setActiveIndex(0);
+    setAct("ready");
+
+    if (mapRef.current && map.points[0]) {
+      mapRef.current.jumpTo({
+        center: [map.points[0].longitude, map.points[0].latitude],
+        zoom: 3,
+        pitch: 0,
+        bearing: 0,
+      });
+    }
+
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => runFullSequence(0), 80);
+    });
+  }
+
   function runShortSequence(index: number) {
     const factor = isMobile ? 0.7 : 1;
     clearTimers();
@@ -432,7 +451,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
               <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
             <div className="cinematic-final-actions">
-              <button className="btn-secondary" type="button" onClick={() => runFullSequence(0)}>{copy.replay}</button>
+              <button className="btn-secondary" type="button" onClick={restartJourney}>{copy.replay}</button>
               <article className="recipient-gift-cta">
                 <h2>{copy.giftCtaTitle}</h2>
                 <p>{copy.giftCtaText}</p>
