@@ -23,6 +23,16 @@ const ALL_THEMES = ["minimalist", "pastel", "dark-luxe", "premium-gold"] as cons
 const MAX_UPLOAD_IMAGE_SIZE = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
 const UPLOAD_TIMEOUT_MS = 45000;
+const VIDEO_CLIP_DURATION = 20;
+
+type PendingVideoClip = {
+  pointId: string;
+  file: File;
+  duration: number;
+  start: number;
+  previewUrl: string;
+};
+type CloudinarySignResponse = { cloudName?: string; apiKey?: string; folder?: string; timestamp?: string; signature?: string; error?: string };
 
 function getStoredValue(key: string) {
   if (typeof window === "undefined") return "";
@@ -99,6 +109,76 @@ function uploadWithProgress(formData: FormData, onProgress: (percent: number) =>
   });
 }
 
+function getVideoDuration(file: File) {
+  return new Promise<{ duration: number; previewUrl: string }>((resolve, reject) => {
+    const previewUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => resolve({ duration: video.duration, previewUrl });
+    video.onerror = () => {
+      URL.revokeObjectURL(previewUrl);
+      reject(new Error("Unable to read video duration"));
+    };
+    video.src = previewUrl;
+  });
+}
+
+function getCloudinaryClipUrl(url: string, start: number) {
+  if (!url.includes("/upload/")) return url;
+  const safeStart = Math.max(0, Math.floor(start));
+  return url.replace("/upload/", `/upload/so_${safeStart},du_${VIDEO_CLIP_DURATION},q_auto:good/`);
+}
+
+function uploadVideoDirectToCloudinary(file: File, onProgress: (percent: number) => void) {
+  return new Promise<{ media_url?: string; error?: string }>(async (resolve, reject) => {
+    let signPayload: CloudinarySignResponse;
+
+    try {
+      const signResponse = await fetch("/api/cloudinary/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "pinstory-memories" }),
+      });
+      signPayload = (await signResponse.json()) as CloudinarySignResponse;
+      if (!signResponse.ok || !signPayload.cloudName || !signPayload.apiKey || !signPayload.timestamp || !signPayload.signature) {
+        reject(new Error(signPayload.error || "Unable to sign Cloudinary upload"));
+        return;
+      }
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error("Unable to prepare Cloudinary upload"));
+      return;
+    }
+
+    const request = new XMLHttpRequest();
+    request.open("POST", `https://api.cloudinary.com/v1_1/${signPayload.cloudName}/video/upload`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onload = () => {
+      try {
+        const payload = JSON.parse(request.responseText || "{}") as { secure_url?: string; error?: { message?: string } };
+        if (request.status >= 200 && request.status < 300) {
+          resolve({ media_url: payload.secure_url });
+          return;
+        }
+        reject(new Error(payload.error?.message || "Video upload failed"));
+      } catch {
+        reject(new Error(`Invalid upload response (${request.status})`));
+      }
+    };
+    request.onerror = () => reject(new Error("Network upload error"));
+    request.onabort = () => reject(new Error("Upload cancelled"));
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", signPayload.apiKey);
+    formData.append("timestamp", signPayload.timestamp);
+    formData.append("signature", signPayload.signature);
+    formData.append("folder", signPayload.folder || "pinstory-memories");
+    request.send(formData);
+  });
+}
+
 export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; dictionary: Dictionary; initialPlan: Plan }) {
   const router = useRouter();
   const isArabic = lang === "ar";
@@ -127,6 +207,7 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
   const [activePointId, setActivePointId] = useState(points[0].id);
   const [placeParts, setPlaceParts] = useState<Record<string, PlaceParts>>({});
   const [status, setStatus] = useState<string | null>(null);
+  const [pendingVideoClip, setPendingVideoClip] = useState<PendingVideoClip | null>(null);
   const activePoint = points.find((point) => point.id === activePointId) || points[0];
 
   const copy = {
@@ -235,11 +316,30 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
 
   async function uploadMedia(point: MemoryPoint, file: File | undefined) {
     if (!file) return;
-    if (file.type.startsWith("video/") && !limits.videos) {
-      setStatus(isArabic ? "الفيديوهات متاحة فقط في خطة أبدي." : isEnglish ? "Videos require the Eternal plan." : "Les vidéos nécessitent la formule Éternel.");
-      return;
-    }
+
     try {
+      if (file.type.startsWith("video/")) {
+        const { duration, previewUrl } = await getVideoDuration(file);
+
+        if (duration > VIDEO_CLIP_DURATION) {
+          setPendingVideoClip({ pointId: point.id, file, duration, start: 0, previewUrl });
+          setActivePointId(point.id);
+          setStatus(isArabic ? "اختر مقطعاً مدته 20 ثانية من الفيديو." : isEnglish ? "Choose a 20-second section from this video." : "Choisissez une section de 20 secondes dans cette vidéo.");
+          return;
+        }
+
+        setStatus(isArabic ? "رفع الفيديو..." : isEnglish ? "Uploading video..." : "Upload de la vidéo...");
+        const result = await uploadVideoDirectToCloudinary(file, (percent) => setStatus(isArabic ? `رفع الفيديو... ${percent}%` : isEnglish ? `Uploading video... ${percent}%` : `Upload vidéo... ${percent}%`));
+        if (!result.media_url) {
+          setStatus(result.error || (isArabic ? "فشل رفع الفيديو." : isEnglish ? "Video upload failed." : "L’upload de la vidéo a échoué."));
+          return;
+        }
+        updatePoint(point.id, { media_url: getCloudinaryClipUrl(result.media_url, 0), media_type: "video" });
+        setStatus(isArabic ? "تمت إضافة الفيديو." : isEnglish ? "Video added." : "Vidéo ajoutée.");
+        window.setTimeout(() => setStatus(null), 1400);
+        return;
+      }
+
       const fileToUpload = file.type.startsWith("image/") ? await compressImageForUpload(file) : file;
       const formData = new FormData();
       formData.append("file", fileToUpload);
@@ -256,6 +356,38 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
       const message = error instanceof Error ? error.message : "Upload failed";
       setStatus(message);
     }
+  }
+
+  async function confirmVideoClip() {
+    if (!pendingVideoClip) return;
+
+    try {
+      setStatus(isArabic ? "رفع مقطع الفيديو..." : isEnglish ? "Uploading selected clip..." : "Upload de l’extrait vidéo...");
+      const result = await uploadVideoDirectToCloudinary(pendingVideoClip.file, (percent) => {
+        setStatus(isArabic ? `رفع مقطع الفيديو... ${percent}%` : isEnglish ? `Uploading selected clip... ${percent}%` : `Upload de l’extrait vidéo... ${percent}%`);
+      });
+
+      if (!result.media_url) {
+        setStatus(result.error || (isArabic ? "فشل رفع الفيديو." : isEnglish ? "Video upload failed." : "L’upload de la vidéo a échoué."));
+        return;
+      }
+
+      updatePoint(pendingVideoClip.pointId, {
+        media_url: getCloudinaryClipUrl(result.media_url, pendingVideoClip.start),
+        media_type: "video",
+      });
+      URL.revokeObjectURL(pendingVideoClip.previewUrl);
+      setPendingVideoClip(null);
+      setStatus(isArabic ? "تمت إضافة مقطع 20 ثانية." : isEnglish ? "20-second video clip added." : "Extrait vidéo de 20 secondes ajouté.");
+      window.setTimeout(() => setStatus(null), 1600);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : isArabic ? "فشل رفع الفيديو." : isEnglish ? "Video upload failed." : "L’upload de la vidéo a échoué.");
+    }
+  }
+
+  function cancelVideoClip() {
+    if (pendingVideoClip) URL.revokeObjectURL(pendingVideoClip.previewUrl);
+    setPendingVideoClip(null);
   }
 
   function canGoNext() {
@@ -378,7 +510,58 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
                     <article className={`poi-card-item ${activePointId === point.id ? "active" : ""}`} key={point.id}>
                       <div className="form-stack">
                         <button className="segment-button" type="button" onClick={() => setActivePointId(point.id)}>{isArabic ? "تعديل الذكرى" : isEnglish ? "Edit memory" : "Modifier le souvenir"} #{point.order}</button>
-                        <div className="form-field"><label>{isArabic ? "اختر صورة" : isEnglish ? "Choose a photo" : "Choisir une photo"}</label>{point.media_url ? <div className="media-preview-card">{point.media_type === "video" ? <video src={point.media_url} controls /> : <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />}</div> : null}<input type="file" accept={limits.videos ? "image/*,video/*" : "image/*"} onChange={(event) => uploadMedia(point, event.target.files?.[0])} /></div>
+                        <div className="form-field">
+                          <label>{isArabic ? "اختر صورة أو فيديو" : isEnglish ? "Choose a photo or video" : "Choisir une photo ou une vidéo"}</label>
+                          {point.media_url ? (
+                            <div className="media-preview-card">
+                              {point.media_type === "video" ? <video src={point.media_url} controls /> : <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />}
+                            </div>
+                          ) : null}
+                          <input type="file" accept="image/*,video/*" onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
+                          <small className="field-hint">
+                            {isArabic
+                              ? "الفيديوهات محددة بـ 20 ثانية. إذا كانت أطول، اختر المقطع المطلوب."
+                              : isEnglish
+                                ? "Videos are limited to 20 seconds. If longer, choose the section to keep."
+                                : "Les vidéos sont limitées à 20 secondes. Si elles sont plus longues, choisissez la section à garder."}
+                          </small>
+                          {pendingVideoClip?.pointId === point.id ? (
+                            <div className="video-clip-selector">
+                              <video src={pendingVideoClip.previewUrl} controls />
+                              <label>
+                                <span>
+                                  {isArabic
+                                    ? `بداية المقطع: ${Math.round(pendingVideoClip.start)} ث`
+                                    : isEnglish
+                                      ? `Clip start: ${Math.round(pendingVideoClip.start)}s`
+                                      : `Début de l’extrait : ${Math.round(pendingVideoClip.start)}s`}
+                                </span>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max={Math.max(0, Math.floor(pendingVideoClip.duration - VIDEO_CLIP_DURATION))}
+                                  value={pendingVideoClip.start}
+                                  onChange={(event) => setPendingVideoClip((clip) => clip ? { ...clip, start: Number(event.target.value) } : clip)}
+                                />
+                              </label>
+                              <p className="field-hint">
+                                {isArabic
+                                  ? "سيتم الاحتفاظ بـ 20 ثانية ابتداءً من هذا الموضع."
+                                  : isEnglish
+                                    ? "PinStory will keep 20 seconds from this position."
+                                    : "PinStory gardera 20 secondes à partir de cette position."}
+                              </p>
+                              <div className="poi-actions">
+                                <button className="btn-cta" type="button" onClick={() => void confirmVideoClip()}>
+                                  {isArabic ? "استخدام هذا المقطع" : isEnglish ? "Use this clip" : "Utiliser cet extrait"}
+                                </button>
+                                <button className="btn-secondary" type="button" onClick={cancelVideoClip}>
+                                  {isArabic ? "إلغاء" : isEnglish ? "Cancel" : "Annuler"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                         <div className="form-field"><label>{isArabic ? "عنوان الصورة" : isEnglish ? "Photo title" : "Titre de la photo"}</label><input value={point.title} onChange={(event) => updatePoint(point.id, { title: event.target.value })} /></div>
                         <div className="form-field"><label>{isArabic ? "النص" : isEnglish ? "Text" : "Texte"}</label><textarea rows={2} value={point.description} onChange={(event) => updatePoint(point.id, { description: event.target.value })} /></div>
                         <div className="structured-place-grid">

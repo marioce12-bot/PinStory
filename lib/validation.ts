@@ -38,7 +38,7 @@ export function validateMapPayload(payload: unknown) {
     }
 
     if (point.media_type === "video" && !PLAN_LIMITS[plan].videos) {
-      return { ok: false as const, error: "Videos require the Eternal plan." };
+      return { ok: false as const, error: "Videos are not available for this plan." };
     }
   }
 
