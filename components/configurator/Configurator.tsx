@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithPopup } from "firebase/auth";
 import { AudioSelector } from "@/components/configurator/AudioSelector";
@@ -179,66 +179,10 @@ export function Configurator({
   const [activePointId, setActivePointId] = useState(points[0].id);
   const [status, setStatus] = useState<string | null>(null);
   const [uploadingPointId, setUploadingPointId] = useState<string | null>(null);
-  const [miniQuota, setMiniQuota] = useState({ quota: 2, remaining: 2, used: 0, knownAccount: false });
 
   const limits = PLAN_LIMITS[plan];
   const availableThemes = limits.themes as readonly ThemeStyle[];
   const activePoint = points.find((point) => point.id === activePointId) || points[0];
-
-  useEffect(() => {
-    if (plan !== "mini") return;
-
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail.includes("@")) {
-      const frame = window.requestAnimationFrame(() => {
-        setMiniQuota({ quota: 2, remaining: 2, used: 0, knownAccount: false });
-      });
-
-      return () => window.cancelAnimationFrame(frame);
-    }
-
-    const controller = new AbortController();
-
-    fetch(`/api/mini-quota?email=${encodeURIComponent(normalizedEmail)}`, { signal: controller.signal })
-      .then((response) => response.json())
-      .then((payload: { quota?: number; remaining?: number; used?: number; knownAccount?: boolean }) => {
-        setMiniQuota({
-          quota: payload.quota ?? 2,
-          remaining: payload.remaining ?? 2,
-          used: payload.used ?? 0,
-          knownAccount: Boolean(payload.knownAccount),
-        });
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name === "AbortError") return;
-      });
-
-    return () => controller.abort();
-  }, [email, plan]);
-
-  function getMiniQuotaText() {
-    if (miniQuota.remaining <= 0) {
-      return isArabic
-        ? "انتهت التجارب المجانية، ستكون هذه الخريطة بسعر 2$"
-        : isEnglish
-          ? "Free trials used, this Mini map is $2"
-          : "Essais gratuits utilisés, cette carte Mini sera à 2$";
-    }
-
-    if (miniQuota.remaining === miniQuota.quota && !miniQuota.knownAccount) {
-      return isArabic
-        ? "مجاناً لأول خريطتين Mini"
-        : isEnglish
-          ? "Free for your first 2 Mini maps"
-          : "Gratuit pour vos 2 premières cartes Mini";
-    }
-
-    return isArabic
-      ? `مجاناً: تبقى ${miniQuota.remaining} من ${miniQuota.quota}`
-      : isEnglish
-        ? `Free: ${miniQuota.remaining} of ${miniQuota.quota} left`
-        : `Gratuit : il reste ${miniQuota.remaining} sur ${miniQuota.quota}`;
-  }
 
   function getThemeLabel(item: ThemeStyle) {
     switch (item) {
@@ -519,12 +463,6 @@ export function Configurator({
           </h1>
 
           <div className="selected-plan-card">
-            {plan === "mini" ? (
-              <div className={`mini-quota-badge ${miniQuota.remaining <= 0 ? "is-paid" : "is-free"}`}>
-                <span>{miniQuota.remaining <= 0 ? "$2" : isArabic ? "مجاني" : "GRATUIT"}</span>
-                <strong>{getMiniQuotaText()}</strong>
-              </div>
-            ) : null}
             <span>{isArabic ? "الخطة المختارة" : isEnglish ? "Selected plan" : "Formule choisie"}</span>
             <strong>{dictionary.plans[plan]}</strong>
             <small>
