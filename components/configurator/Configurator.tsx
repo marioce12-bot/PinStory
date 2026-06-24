@@ -577,10 +577,69 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
                   );
                 })}
                 <button className="btn-secondary" type="button" onClick={addPoint} disabled={points.length >= limits.maxPoints}>{isArabic ? "إضافة ذكرى" : isEnglish ? "Add a memory" : "Ajouter un souvenir"}</button>
+
+                <div className="form-field theme-selection-block">
+                  <label>{isArabic ? "شكل الألبوم" : isEnglish ? "Album theme" : "Thème de l’album"}</label>
+                  <div className="theme-choice-grid">
+                    {ALL_THEMES.map((item) => {
+                      const isAvailable = availableThemes.includes(item);
+                      return (
+                        <button className={`theme-choice-card ${theme === item ? "active" : ""} ${!isAvailable ? "disabled" : ""}`} key={item} type="button" disabled={!isAvailable} onClick={() => setTheme(item)}>
+                          <span className={`theme-swatch ${item}`} />
+                          <strong>{getThemeLabel(item)}</strong>
+                          {!isAvailable ? <small>{isArabic ? "متاح في عرض أعلى" : isEnglish ? "Higher plan" : "Offre supérieure"}</small> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className={`theme-album-preview ${theme}`}>
+                    <div className="theme-album-media">
+                      {points.find((point) => point.media_url)?.media_url ? (
+                        points.find((point) => point.media_url)?.media_type === "video" ? (
+                          <video src={points.find((point) => point.media_url)?.media_url} muted playsInline />
+                        ) : (
+                          <Image src={points.find((point) => point.media_url)?.media_url || ""} alt="Theme preview" width={420} height={260} />
+                        )
+                      ) : (
+                        <span />
+                      )}
+                    </div>
+                    <div className="theme-album-copy">
+                      <small>{getThemeLabel(theme)}</small>
+                      <strong>{title}</strong>
+                      <p>{message}</p>
+                    </div>
+                  </div>
+                  <small className="field-hint">
+                    {plan === "mini"
+                      ? isArabic
+                        ? "خطة Mini تستخدم حالياً الثيم البسيط فقط."
+                        : isEnglish
+                          ? "Mini currently uses the Minimalist theme only."
+                          : "Mini utilise actuellement uniquement le thème minimaliste."
+                      : isArabic
+                        ? "اختر الثيم المتاح في خطتك."
+                        : isEnglish
+                          ? "Choose any theme included in your plan."
+                          : "Choisissez un thème inclus dans votre formule."}
+                  </small>
+                </div>
               </div>
             ) : null}
 
-            {step === 3 ? <div className="form-stack"><div className="form-field"><label htmlFor="final-message">{isArabic ? "رسالة النهاية" : isEnglish ? "Final message" : "Message de fin"}</label><textarea id="final-message" rows={5} value={finalMessage} onChange={(event) => setFinalMessage(event.target.value)} /></div><AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} /><div className="form-field"><label htmlFor="secret-code">{isArabic ? "رمز سري (اختياري)" : isEnglish ? "Secret code (optional)" : "Code secret (optionnel)"}</label><input id="secret-code" value={secretCode} onChange={(event) => setSecretCode(event.target.value)} /></div><div className="form-field"><label>Thème</label><div className="theme-choice-grid">{ALL_THEMES.map((item) => { const isAvailable = availableThemes.includes(item); return <button className={`theme-choice-card ${theme === item ? "active" : ""} ${!isAvailable ? "disabled" : ""}`} key={item} type="button" disabled={!isAvailable} onClick={() => setTheme(item)}><span className={`theme-swatch ${item}`} /><strong>{getThemeLabel(item)}</strong>{!isAvailable ? <small>{isArabic ? "متاح في عرض أعلى" : isEnglish ? "Higher plan" : "Offre supérieure"}</small> : null}</button>; })}</div></div></div> : null}
+            {step === 3 ? (
+              <div className="form-stack">
+                <div className="form-field">
+                  <label htmlFor="final-message">{isArabic ? "رسالة النهاية" : isEnglish ? "Final message" : "Message de fin"}</label>
+                  <textarea id="final-message" rows={5} value={finalMessage} onChange={(event) => setFinalMessage(event.target.value)} />
+                </div>
+                <AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} />
+                <div className="form-field">
+                  <label htmlFor="secret-code">{isArabic ? "رمز سري (اختياري)" : isEnglish ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
+                  <input id="secret-code" value={secretCode} onChange={(event) => setSecretCode(event.target.value)} />
+                </div>
+              </div>
+            ) : null}
 
             {step === 4 ? <div className="wizard-summary"><p><strong>{isArabic ? "الوجهة" : isEnglish ? "Recipient" : "Destinataire"}:</strong> {recipientType === "self" ? getRecipientLabel(recipientType) : `${getRecipientLabel(recipientType)} — ${recipientName}`}</p><p><strong>{isArabic ? "الألبوم" : isEnglish ? "Album" : "Album"}:</strong> {title}</p><p><strong>{isArabic ? "الذكريات" : isEnglish ? "Memories" : "Souvenirs"}:</strong> {points.length}</p><p><strong>{isArabic ? "الموسيقى" : isEnglish ? "Music" : "Musique"}:</strong> {audioUrl ? (isArabic ? "مضافة" : isEnglish ? "Added" : "Ajoutée") : (isArabic ? "بدون موسيقى" : isEnglish ? "No music" : "Sans musique")}</p></div> : null}
           </section>
