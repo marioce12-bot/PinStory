@@ -43,6 +43,17 @@ type ModerationResult = {
   scores?: Record<string, number>;
 };
 
+type ImgBbConfig = {
+  apiKey?: string;
+  configured: boolean;
+};
+
+type UploadResult = {
+  secure_url: string;
+  resource_type: "image" | "video";
+  provider: "cloudinary" | "imgbb";
+};
+
 function cleanEnvValue(value?: string) {
   return value?.trim().replace(/^['"]|['"]$/g, "");
 }
@@ -63,6 +74,21 @@ function getModerationDiagnostics() {
     configured: config.provider !== "not_configured",
     apiUserPresent: Boolean(config.apiUser),
     apiSecretPresent: Boolean(config.apiSecret),
+  };
+}
+
+function getImgBbConfig(): ImgBbConfig {
+  const apiKey = cleanEnvValue(process.env.IMGBB_API_KEY);
+  return { apiKey, configured: Boolean(apiKey) };
+}
+
+function getImgBbDiagnostics() {
+  const config = getImgBbConfig();
+
+  return {
+    configured: config.configured,
+    apiKeyPresent: Boolean(config.apiKey),
+    apiKeyLast4: config.apiKey ? config.apiKey.slice(-4) : null,
   };
 }
 
@@ -126,6 +152,7 @@ function getCloudinaryDiagnostics() {
     cloudinaryUrlPresent: Boolean(rawCloudinaryUrl),
     cloudinaryUrlStartsCorrectly: rawCloudinaryUrl ? rawCloudinaryUrl.startsWith("cloudinary://") : false,
     moderation: getModerationDiagnostics(),
+    imgbb: getImgBbDiagnostics(),
     message:
       config.missing.length === 0
         ? "Cloudinary configuration is visible to Vercel. If upload still fails with 401, the API key/secret/cloud name combination is invalid."
@@ -288,6 +315,84 @@ async function uploadToCloudinaryRest({
   return { secure_url: payload.secure_url, resource_type: payload.resource_type } satisfies CloudinaryUpload;
 }
 
+async function uploadImageToImgBb(bytes: Buffer, fileName: string): Promise<UploadResult> {
+  const { apiKey } = getImgBbConfig();
+
+  if (!apiKey) {
+    throw new Error("ImgBB fallback is not configured. Missing IMGBB_API_KEY.");
+  }
+
+  const formData = new FormData();
+  formData.append("image", bytes.toString("base64"));
+  formData.append("name", fileName.replace(/\.[^.]+$/, "") || "pinstory-image");
+
+  const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    data?: {
+      url?: string;
+      display_url?: string;
+    };
+    error?: {
+      message?: string;
+    };
+  };
+
+  if (!response.ok || !payload.data?.url) {
+    throw new Error(`ImgBB upload failed (${response.status}): ${payload.error?.message || response.statusText}`);
+  }
+
+  return {
+    secure_url: payload.data.display_url || payload.data.url,
+    resource_type: "image",
+    provider: "imgbb",
+  };
+}
+
+async function uploadImageWithFallback({
+  bytes,
+  mimeType,
+  fileName,
+  cloudinaryConfig,
+}: {
+  bytes: Buffer;
+  mimeType: string;
+  fileName: string;
+  cloudinaryConfig?: CloudinaryUploadConfig;
+}): Promise<UploadResult> {
+  let cloudinaryError: unknown = null;
+
+  if (cloudinaryConfig) {
+    try {
+      const upload = await uploadToCloudinaryRest({
+        bytes,
+        resourceType: "image",
+        mimeType,
+        fileName,
+        config: cloudinaryConfig,
+      });
+
+      return {
+        secure_url: upload.secure_url,
+        resource_type: "image",
+        provider: "cloudinary",
+      };
+    } catch (error) {
+      cloudinaryError = error;
+      console.warn("Cloudinary image upload failed. Trying ImgBB fallback.", error);
+    }
+  }
+
+  if (getImgBbConfig().configured) {
+    return uploadImageToImgBb(bytes, fileName);
+  }
+
+  if (cloudinaryError) throw cloudinaryError;
+  throw new Error("No image upload provider is configured. Configure CLOUDINARY_URL or IMGBB_API_KEY.");
+}
+
 export async function GET() {
   const diagnostics = getCloudinaryDiagnostics();
   const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
@@ -370,8 +475,9 @@ export async function POST(request: Request) {
     }
 
     const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
+    const canUseCloudinary = missing.length === 0 && Boolean(cloudName && apiKey && apiSecret);
 
-    if (missing.length > 0) {
+    if (!canUseCloudinary && resourceType !== "image") {
       return NextResponse.json(
         {
           error: `Cloudinary is not configured. Missing: ${missing.join(", ")}.`,
@@ -381,18 +487,35 @@ export async function POST(request: Request) {
       );
     }
 
-    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
-    const upload = await uploadToCloudinaryRest({
-      bytes,
-      resourceType,
-      mimeType: file.type || (resourceType === "image" ? "image/webp" : "audio/mpeg"),
-      fileName: file.name || `pinstory-upload.${resourceType === "image" ? "webp" : "mp3"}`,
-      config: { cloudName: cloudName!, apiKey: apiKey!, apiSecret: apiSecret! },
-    });
+    if (canUseCloudinary) {
+      cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+    }
+
+    const upload =
+      resourceType === "image"
+        ? await uploadImageWithFallback({
+            bytes,
+            mimeType: file.type || "image/webp",
+            fileName: file.name || "pinstory-upload.webp",
+            cloudinaryConfig: canUseCloudinary
+              ? { cloudName: cloudName!, apiKey: apiKey!, apiSecret: apiSecret! }
+              : undefined,
+          })
+        : {
+            ...(await uploadToCloudinaryRest({
+              bytes,
+              resourceType,
+              mimeType: file.type || "audio/mpeg",
+              fileName: file.name || "pinstory-upload.mp3",
+              config: { cloudName: cloudName!, apiKey: apiKey!, apiSecret: apiSecret! },
+            })),
+            provider: "cloudinary" as const,
+          };
 
     return NextResponse.json({
-      media_url: getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
+      media_url: upload.provider === "imgbb" ? upload.secure_url : getOptimizedCloudinaryUrl(upload.secure_url, upload.resource_type),
       media_type: file.type.startsWith("audio/") ? "audio" : upload.resource_type === "video" ? "video" : "image",
+      provider: upload.provider,
     });
   } catch (error) {
     console.error("PinStory upload failed", error);
