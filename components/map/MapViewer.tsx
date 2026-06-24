@@ -39,6 +39,9 @@ function getCopy(lang: MemoryMap["lang"]) {
       openAlbum: "فتح الألبوم",
       memories: "الذكريات",
       finalFallback: "شكراً لأنك عشت هذه الرحلة معنا. هذه الذكريات ستبقى دائماً قريبة من القلب.",
+      giftCtaTitle: "اصنع أنت أيضاً ذكرى جميلة",
+      giftCtaText: "أنشئ PinStory وقدّمه لشخص قريب منك كهدية لا تُنسى.",
+      giftCtaButton: "إنشاء ذكرى كهدية",
     };
   }
 
@@ -59,6 +62,9 @@ function getCopy(lang: MemoryMap["lang"]) {
       openAlbum: "Open album",
       memories: "Memories",
       finalFallback: "Thank you for reliving this journey with us. These memories will always stay close to our hearts.",
+      giftCtaTitle: "Create your own memory too",
+      giftCtaText: "Make a PinStory and offer it to someone you love as a meaningful gift.",
+      giftCtaButton: "Create a memory gift",
     };
   }
 
@@ -78,6 +84,9 @@ function getCopy(lang: MemoryMap["lang"]) {
     openAlbum: "Ouvrir l’album",
     memories: "Souvenirs",
     finalFallback: "Merci d’avoir revécu ce voyage avec nous. Ces souvenirs resteront toujours près du cœur.",
+    giftCtaTitle: "Créez aussi votre propre souvenir",
+    giftCtaText: "Offrez à vos proches un PinStory personnalisé, comme celui que vous venez de découvrir.",
+    giftCtaButton: "Créer un souvenir à offrir",
   };
 }
 
@@ -380,7 +389,14 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
             <div className="cinematic-final-scroll" tabIndex={0}>
               <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
-            <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.replay}</button>
+            <div className="cinematic-final-actions">
+              <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.replay}</button>
+              <article className="recipient-gift-cta">
+                <h2>{copy.giftCtaTitle}</h2>
+                <p>{copy.giftCtaText}</p>
+                <a className="btn-cta" href={`/${map.lang}`}>{copy.giftCtaButton}</a>
+              </article>
+            </div>
           </motion.section>
         ) : null}
       </AnimatePresence>
