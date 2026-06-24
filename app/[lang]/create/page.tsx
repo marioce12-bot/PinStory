@@ -14,7 +14,7 @@ export default async function CreatePage({
   const { plan } = await searchParams;
   if (!isLocale(lang)) notFound();
 
-  const initialPlan: Plan = plan && isPlan(plan) ? plan : "souvenir";
+  const initialPlan: Plan = plan && isPlan(plan) && plan !== "free" ? plan : "mini";
 
   return <Configurator lang={lang} dictionary={getDictionary(lang)} initialPlan={initialPlan} />;
 }

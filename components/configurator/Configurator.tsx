@@ -625,7 +625,7 @@ export function Configurator({
             </p>
           ) : null}
           <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !title || points.length === 0}>
-            {plan === "free" ? dictionary.cta.save : dictionary.cta.checkout}
+            {plan === "mini" ? dictionary.cta.save : dictionary.cta.checkout}
           </button>
         </div>
       </section>

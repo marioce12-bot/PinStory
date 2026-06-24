@@ -10,26 +10,20 @@ function createId() {
   return `map_${crypto.randomUUID().replaceAll("-", "").slice(0, 14)}`;
 }
 
-function isActiveMap(map: { expires_at?: string | null; payment_status?: string | null }) {
-  const isNotExpired = !map.expires_at || new Date(map.expires_at) > new Date();
-  const isUsableStatus = map.payment_status === "free" || map.payment_status === "paid";
-  return isNotExpired && isUsableStatus;
-}
-
-async function countActiveFreeMapsForEmail(email: string) {
+async function countFreeMiniMapsForEmail(email: string) {
   const firebaseDb = getFirebaseDb();
   if (firebaseDb) {
     const snapshot = await firebaseDb.collection("maps").where("client_email", "==", email).get();
     return snapshot.docs.filter((doc) => {
       const data = doc.data() as { plan?: string; expires_at?: string | null; payment_status?: string | null };
-      return data.plan === "free" && isActiveMap(data);
+      return data.plan === "mini" && data.payment_status === "free";
     }).length;
   }
 
   const supabase = getSupabaseAdmin();
   if (supabase) {
     const { data } = await supabase.from("maps").select("plan, expires_at, payment_status").eq("client_email", email);
-    return (data || []).filter((map) => map.plan === "free" && isActiveMap(map)).length;
+    return (data || []).filter((map) => map.plan === "mini" && map.payment_status === "free").length;
   }
 
   return 0;
@@ -73,12 +67,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
+  if (validation.plan === "free") {
+    return NextResponse.json({ error: "The free plan has been replaced by Mini." }, { status: 400 });
+  }
+
   const data = payload as Record<string, unknown>;
   const id = createId();
   const clientEmail = String(data.client_email || "").trim().toLowerCase();
   const createdAt = new Date();
   const expiresAt = getPlanExpiry(validation.plan, createdAt);
-  const paymentStatus = validation.plan === "free" ? "free" : "pending";
 
   if (!clientEmail) {
     return NextResponse.json({ error: "Email is required to create a PinStory." }, { status: 400 });
@@ -90,18 +87,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: accountVerification.error }, { status: 403 });
   }
 
-  if (validation.plan === "free") {
-    const activeFreeMaps = await countActiveFreeMapsForEmail(clientEmail);
-    if (activeFreeMaps >= 2) {
-      return NextResponse.json(
-        {
-          error:
-            "Free plan limit reached: you can keep up to 2 active free PinStory links. Upgrade or wait for one to expire.",
-        },
-        { status: 403 },
-      );
-    }
-  }
+  const freeMiniCount = validation.plan === "mini" ? await countFreeMiniMapsForEmail(clientEmail) : 0;
+  const isComplimentaryMini = validation.plan === "mini" && freeMiniCount < 2;
+  const paymentStatus = isComplimentaryMini ? "free" : "pending";
 
   const mapRecord = {
     id,
@@ -177,7 +165,7 @@ export async function POST(request: Request) {
     if (pointsError) return NextResponse.json({ error: pointsError.message }, { status: 500 });
   }
 
-  if (validation.plan !== "free") {
+  if (!isComplimentaryMini) {
     const checkout = await createFedaPayCheckout({
       mapId: id,
       plan: validation.plan,
@@ -205,5 +193,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ id });
+  return NextResponse.json({ id, complimentary: true });
 }

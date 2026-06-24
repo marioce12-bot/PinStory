@@ -8,12 +8,13 @@ export function validateMapPayload(payload: unknown) {
   }
 
   const data = payload as Record<string, unknown>;
-  const plan = String(data.plan || "free");
+  const plan = String(data.plan || "mini");
   const lang = String(data.lang || "fr");
   const theme = String(data.theme_style || "minimalist") as ThemeStyle;
   const points = Array.isArray(data.points) ? (data.points as MemoryPoint[]) : [];
 
   if (!isPlan(plan)) return { ok: false as const, error: "Unknown plan." };
+  if (plan === "free") return { ok: false as const, error: "The free plan has been replaced by Mini." };
   if (!isLocale(lang)) return { ok: false as const, error: "Unknown language." };
   if (!PLAN_LIMITS[plan].themes.includes(theme as never)) {
     return { ok: false as const, error: "Theme is not available for this plan." };
@@ -28,7 +29,7 @@ export function validateMapPayload(payload: unknown) {
       return { ok: false as const, error: "Every memory needs a place." };
     }
 
-    if (plan !== "free" && !point.media_url) {
+    if (!point.media_url) {
       return { ok: false as const, error: "A photo or video is required for each paid memory." };
     }
 

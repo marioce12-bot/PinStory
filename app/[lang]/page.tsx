@@ -8,7 +8,6 @@ import { ScrollReveal } from "@/components/shared/ScrollReveal";
 import { getDictionary, isLocale, type Locale } from "@/lib/i18n";
 
 const planPrices = {
-  free: "$0",
   mini: "$2",
   souvenir: "$5",
   eternal: "$33",
@@ -264,15 +263,18 @@ export default async function LandingPage({
       <section className="section" id="pricing" data-reveal="fade-up">
         <h2 className="section-title" data-reveal="slide-left">{dictionary.landing.pricing_title}</h2>
         <div className="pricing-grid">
-          {(["free", "mini", "souvenir", "eternal"] as const).map((plan, index) => (
+          {(["mini", "souvenir", "eternal"] as const).map((plan, index) => (
             <article className={`pricing-card ${plan === "eternal" ? "featured" : ""}`} key={plan} data-reveal={index % 2 === 0 ? "slide-left" : "slide-right"}>
               <h3>{dictionary.plans[plan]}</h3>
               <p className="price">{planPrices[plan]}</p>
               <ul>
-                <li>{plan === "free" ? "3" : plan === "mini" ? "5" : plan === "souvenir" ? "10" : "∞"} {isArabic ? "نقاط" : "points"}</li>
+                <li>{plan === "mini" ? "5" : plan === "souvenir" ? "10" : "∞"} {isArabic ? "نقاط" : "points"}</li>
                 <li>{plan === "eternal" ? (isArabic ? "صور وفيديوهات" : isEnglish ? "Photos and videos" : "Photos et vidéos") : (isArabic ? "الصور مشمولة" : isEnglish ? "Photos included" : "Photos incluses")}</li>
                 <li>{isArabic ? "رمز QR مشمول" : isEnglish ? "QR Code included" : "QR Code inclus"}</li>
-                <li>{plan === "free" ? (isArabic ? "14 يوماً" : "14 jours") : plan === "mini" ? (isArabic ? "30 يوماً" : "30 jours") : plan === "souvenir" ? (isArabic ? "6 أشهر" : "6 mois") : (isArabic ? "مدى الحياة" : isEnglish ? "Lifetime" : "À vie")}</li>
+                {plan === "mini" ? (
+                  <li>{isArabic ? "أول ذكريتين مجاناً، ثم 2$" : isEnglish ? "First 2 memories free, then $2" : "2 premiers souvenirs gratuits, puis 2$"}</li>
+                ) : null}
+                <li>{plan === "mini" ? (isArabic ? "30 يوماً" : "30 jours") : plan === "souvenir" ? (isArabic ? "6 أشهر" : "6 mois") : (isArabic ? "مدى الحياة" : isEnglish ? "Lifetime" : "À vie")}</li>
               </ul>
               <Link className="btn-cta" href={`/${lang}/create?plan=${plan}`}>
                 {dictionary.cta.start}
