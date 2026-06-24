@@ -2,18 +2,32 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
+import * as THREE from "three";
 import { BackgroundMusic } from "@/components/map/BackgroundMusic";
 import { BrandLogo } from "@/components/shared/BrandLogo";
+import { getMapTilerStyle } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
-type StoryPhase = "locked" | "intro" | "flying" | "pin" | "modal" | "final";
-type TravelStage = "idle" | "launch" | "globe" | "dive";
+type ExperienceAct = "locked" | "ready" | "space" | "clouds" | "flash" | "map" | "modal" | "final";
+
+const UNSPLASH_FLASH_IMAGES = [
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?auto=format&fit=crop&w=480&q=60",
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=480&q=60",
+];
+
+const HANDS_MAP_IMAGE = "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=70";
 
 function getDirectionsUrl(point: MemoryMap["points"][number]) {
   const destination = point.place_name || `${point.latitude},${point.longitude}`;
@@ -23,10 +37,9 @@ function getDirectionsUrl(point: MemoryMap["points"][number]) {
 function getCopy(lang: MemoryMap["lang"]) {
   if (lang === "ar") {
     return {
-      intro1: "استعد لرحلة صغيرة بين الذكريات...",
-      intro2: "تدور الأرض... ثم نقترب من أول ذكرى.",
-      start: "اكتشف الخريطة",
-      tapPin: "اضغط على علامة الموقع لفتح الذكرى",
+      start: "ابدأ الرحلة",
+      skip: "تخطي",
+      tapPin: "اضغط على الدبوس المضيء لفتح الذكرى",
       continue: "متابعة الرحلة",
       finish: "إنهاء الرحلة",
       replay: "إعادة الرحلة",
@@ -36,7 +49,6 @@ function getCopy(lang: MemoryMap["lang"]) {
       codePlaceholder: "الرمز السري",
       wrongCode: "الرمز السري غير صحيح.",
       openAlbum: "فتح الألبوم",
-      memories: "الذكريات",
       finalFallback: "شكراً لأنك عشت هذه الرحلة معنا. هذه الذكريات ستبقى دائماً قريبة من القلب.",
       giftCtaTitle: "اصنع أنت أيضاً ذكرى جميلة",
       giftCtaText: "أنشئ PinStory وقدّمه لشخص قريب منك كهدية لا تُنسى.",
@@ -46,10 +58,9 @@ function getCopy(lang: MemoryMap["lang"]) {
 
   if (lang === "en") {
     return {
-      intro1: "Get ready to relive this journey...",
-      intro2: "The globe turns... then we zoom into your first memory.",
-      start: "Discover my map",
-      tapPin: "Tap the location pin to open the memory",
+      start: "Start the journey",
+      skip: "Skip",
+      tapPin: "Tap the glowing pin to open the memory",
       continue: "Continue the journey",
       finish: "End the journey",
       replay: "Replay the journey",
@@ -59,7 +70,6 @@ function getCopy(lang: MemoryMap["lang"]) {
       codePlaceholder: "Secret code",
       wrongCode: "Incorrect secret code.",
       openAlbum: "Open album",
-      memories: "Memories",
       finalFallback: "Thank you for reliving this journey with us. These memories will always stay close to our hearts.",
       giftCtaTitle: "Create your own memory too",
       giftCtaText: "Make a PinStory and offer it to someone you love as a meaningful gift.",
@@ -68,10 +78,9 @@ function getCopy(lang: MemoryMap["lang"]) {
   }
 
   return {
-    intro1: "Préparez-vous à revivre ce voyage...",
-    intro2: "Le globe tourne... puis on plonge vers votre premier souvenir.",
-    start: "Découvrir ma carte",
-    tapPin: "Appuyez sur l’icône de localisation pour ouvrir le souvenir",
+    start: "Commencer le voyage",
+    skip: "Passer",
+    tapPin: "Appuyez sur le pin lumineux pour ouvrir le souvenir",
     continue: "Continuer le voyage",
     finish: "Terminer le voyage",
     replay: "Refaire le voyage",
@@ -81,7 +90,6 @@ function getCopy(lang: MemoryMap["lang"]) {
     codePlaceholder: "Code secret",
     wrongCode: "Code secret incorrect.",
     openAlbum: "Ouvrir l’album",
-    memories: "Souvenirs",
     finalFallback: "Merci d’avoir revécu ce voyage avec nous. Ces souvenirs resteront toujours près du cœur.",
     giftCtaTitle: "Créez aussi votre propre souvenir",
     giftCtaText: "Offrez à vos proches un PinStory personnalisé, comme celui que vous venez de découvrir.",
@@ -89,167 +97,228 @@ function getCopy(lang: MemoryMap["lang"]) {
   };
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
+}
+
+function SpaceGlobe() {
+  const mountRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    camera.position.z = 4.2;
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    mount.appendChild(renderer.domElement);
+
+    const geometry = new THREE.SphereGeometry(1.25, 64, 64);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x1e88e5,
+      roughness: 0.6,
+      metalness: 0.08,
+      emissive: 0x06223a,
+      emissiveIntensity: 0.35,
+    });
+    const globe = new THREE.Mesh(geometry, material);
+    scene.add(globe);
+
+    const clouds = new THREE.Mesh(
+      new THREE.SphereGeometry(1.285, 64, 64),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, wireframe: true }),
+    );
+    scene.add(clouds);
+
+    const light = new THREE.DirectionalLight(0xffffff, 2.2);
+    light.position.set(3, 2, 4);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x7ac7ff, 0.8));
+
+    let frame = 0;
+    const animate = () => {
+      frame = requestAnimationFrame(animate);
+      globe.rotation.y += 0.006;
+      globe.rotation.x = Math.sin(Date.now() / 2400) * 0.05;
+      clouds.rotation.y -= 0.003;
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      mount.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  return <div className="three-globe" ref={mountRef} />;
+}
+
 export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
-  const flyTimeoutRef = useRef<number | null>(null);
-  const travelTimeoutsRef = useRef<number[]>([]);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<HTMLElement[]>([]);
+  const timersRef = useRef<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [phase, setPhase] = useState<StoryPhase>(map.secret_code ? "locked" : "intro");
-  const [travelStage, setTravelStage] = useState<TravelStage>("idle");
-  const [hasInteractiveMap, setHasInteractiveMap] = useState(false);
+  const [act, setAct] = useState<ExperienceAct>(map.secret_code ? "locked" : "ready");
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const mapTilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   const currentPoint = map.points[activeIndex] || map.points[0];
   const copy = useMemo(() => getCopy(map.lang), [map.lang]);
+  const flashImages = useMemo(() => {
+    const personalImages = map.points.map((point) => point.media_url).filter((url): url is string => Boolean(url));
+    return [...personalImages, ...UNSPLASH_FLASH_IMAGES, ...personalImages, ...UNSPLASH_FLASH_IMAGES].slice(0, 30);
+  }, [map.points]);
+
+  useEffect(() => {
+    flashImages.forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, [flashImages]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || map.points.length === 0) return;
 
     const firstPoint = map.points[0];
-    const instance = L.map(containerRef.current, {
-      center: [firstPoint.latitude, firstPoint.longitude],
-      zoom: 3,
-      zoomControl: false,
-      attributionControl: true,
-      worldCopyJump: true,
+    const instance = new maplibregl.Map({
+      container: containerRef.current,
+      style: getMapTilerStyle(map.theme_style, mapTilerKey),
+      center: [firstPoint.longitude, firstPoint.latitude],
+      zoom: 12,
+      pitch: 0,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(instance);
-
-    L.control.zoom({ position: "bottomright" }).addTo(instance);
-
     markersRef.current = map.points.map((point, index) => {
-      const icon = L.divIcon({
-        className: "leaflet-cinematic-marker-wrap",
-        html: `<button type="button" class="custom-marker cinematic-marker" aria-label="${point.title || point.place_name}"></button>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "story-pin";
+      marker.setAttribute("aria-label", point.title || point.place_name);
+      marker.addEventListener("click", () => {
+        if (index !== activeIndex) return;
+        setAct("modal");
       });
-      const marker = L.marker([point.latitude, point.longitude], { icon }).addTo(instance);
-      marker.on("click", () => {
-        setActiveIndex(index);
-        setPhase("modal");
-      });
+
+      new maplibregl.Marker({ element: marker }).setLngLat([point.longitude, point.latitude]).addTo(instance);
       return marker;
     });
 
     mapRef.current = instance;
-    setHasInteractiveMap(true);
 
     return () => {
-      if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
-      travelTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
+      timersRef.current.forEach((timer) => window.clearTimeout(timer));
+      timersRef.current = [];
       instance.remove();
       mapRef.current = null;
       markersRef.current = [];
-      setHasInteractiveMap(false);
     };
-  }, [map.points]);
+  }, [activeIndex, map.points, map.theme_style, mapTilerKey]);
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
-      marker
-        .getElement()
-        ?.querySelector(".cinematic-marker")
-        ?.classList.toggle("marker-active", index === activeIndex && (phase === "pin" || phase === "modal"));
+      marker.classList.toggle("active", index === activeIndex && act === "map");
+      marker.classList.toggle("muted", index !== activeIndex);
     });
-  }, [activeIndex, phase]);
+  }, [act, activeIndex]);
 
-  function revealMemory(index = activeIndex) {
-    setTravelStage("idle");
-    setActiveIndex(index);
-    setPhase("modal");
+  function clearTimers() {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
   }
 
-  function queueTravelStep(callback: () => void, delay: number) {
-    const timeout = window.setTimeout(callback, delay);
-    travelTimeoutsRef.current.push(timeout);
-    return timeout;
+  function schedule(callback: () => void, delay: number) {
+    const timer = window.setTimeout(callback, delay);
+    timersRef.current.push(timer);
   }
 
-  function clearTravelSteps() {
-    if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
-    travelTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
-    travelTimeoutsRef.current = [];
-  }
-
-  function flyToMemory(index: number) {
+  function cameraToPoint(index: number) {
     const point = map.points[index];
-    if (!point) return;
-
-    setActiveIndex(index);
-    setPhase("flying");
-    setTravelStage("launch");
-
-    clearTravelSteps();
-
-    if (mapRef.current) {
-      // Phase 1: décollage brutal vers une vue espace.
-      mapRef.current.flyTo(mapRef.current.getCenter(), 1, { duration: 1.2, easeLinearity: 0.2 });
-
-      queueTravelStep(() => {
-        setTravelStage("globe");
-      }, 450);
-
-      // Phase 2: traversée latérale à hauteur espace vers la destination.
-      queueTravelStep(() => {
-        mapRef.current?.flyTo([point.latitude, point.longitude], 1, { duration: 0.8, easeLinearity: 0.18 });
-      }, 1200);
-
-      // Phase 3: plongée rapide vers le sol avec accélération.
-      queueTravelStep(() => {
-        setTravelStage("dive");
-        mapRef.current?.flyTo([point.latitude, point.longitude], 15, { duration: 2, easeLinearity: 0.08 });
-      }, 2000);
-
-      flyTimeoutRef.current = window.setTimeout(() => {
-        setTravelStage("idle");
-        setPhase("pin");
-      }, 4100);
-    } else {
-      queueTravelStep(() => setTravelStage("globe"), 450);
-      queueTravelStep(() => setTravelStage("dive"), 1100);
-      flyTimeoutRef.current = window.setTimeout(() => {
-        setTravelStage("idle");
-        setPhase("pin");
-      }, 1900);
-    }
+    if (!point || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [point.longitude, point.latitude],
+      zoom: 15,
+      pitch: 55,
+      bearing: index % 2 === 0 ? 18 : -18,
+      duration: isMobile ? 1200 : 1800,
+      essential: true,
+    });
   }
 
-  function startStory() {
-    flyToMemory(0);
+  function revealMap(index: number) {
+    setActiveIndex(index);
+    setAct("map");
+    schedule(() => cameraToPoint(index), 250);
+  }
+
+  function runFullSequence(index = 0) {
+    const factor = isMobile ? 0.7 : 1;
+    clearTimers();
+    setActiveIndex(index);
+    setAct("space");
+    schedule(() => setAct("clouds"), 3600 * factor);
+    schedule(() => setAct("flash"), 6100 * factor);
+    schedule(() => revealMap(index), 8500 * factor);
+  }
+
+  function runShortSequence(index: number) {
+    const factor = isMobile ? 0.7 : 1;
+    clearTimers();
+    setActiveIndex(index);
+    setAct("clouds");
+    schedule(() => setAct("flash"), 2100 * factor);
+    schedule(() => revealMap(index), 4300 * factor);
+  }
+
+  function skipToMap() {
+    clearTimers();
+    revealMap(activeIndex);
   }
 
   function continueJourney() {
     const nextIndex = activeIndex + 1;
     if (nextIndex < map.points.length) {
-      flyToMemory(nextIndex);
+      setAct("map");
+      runShortSequence(nextIndex);
       return;
     }
 
-    setPhase("final");
+    setAct("final");
     if (mapRef.current && map.points.length > 0) {
-      const bounds = L.latLngBounds(map.points.map((point) => [point.latitude, point.longitude] as [number, number]));
-      mapRef.current.flyToBounds(bounds, { padding: [90, 90], duration: 3.5 });
+      const bounds = new maplibregl.LngLatBounds();
+      map.points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
+      mapRef.current.fitBounds(bounds, { padding: 80, duration: 1800 });
     }
   }
 
   function unlockAlbum() {
     if (!map.secret_code || secretInput.trim() === map.secret_code) {
-      setPhase("intro");
+      setAct("ready");
       setSecretError(null);
       return;
     }
-
     setSecretError(copy.wrongCode);
   }
 
-  if (phase === "locked") {
+  if (act === "locked") {
     return (
       <main className="secret-gate-page">
         <div className="secret-gate-card">
@@ -266,89 +335,80 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
             placeholder={copy.codePlaceholder}
           />
           {secretError ? <p className="secret-error">{secretError}</p> : null}
-          <button className="btn-cta" type="button" onClick={unlockAlbum}>
-            {copy.openAlbum}
-          </button>
+          <button className="btn-cta" type="button" onClick={unlockAlbum}>{copy.openAlbum}</button>
         </div>
       </main>
     );
   }
 
   return (
-    <main className={`cinematic-map-shell phase-${phase} travel-${travelStage}`}>
+    <main className={`story-experience act-${act}`}>
       <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
-      <div ref={containerRef} className="map-container-fullscreen" />
-
-      {!hasInteractiveMap ? <div className="map-fallback" /> : null}
-
-      {!hasInteractiveMap ? (
-        <div className="map-fallback-markers" aria-hidden="true">
-          {map.points.slice(0, 8).map((point, index) => (
-            <button
-              className={`fallback-marker ${index === activeIndex && phase === "modal" ? "marker-active" : ""}`}
-              key={point.id}
-              style={{ left: `${18 + ((index * 19) % 62)}%`, top: `${22 + ((index * 17) % 56)}%` }}
-              type="button"
-              onClick={() => {
-                setActiveIndex(index);
-                setPhase("modal");
-              }}
-            />
-          ))}
+      <div className="story-map-stage">
+        <div className="story-map-paper">
+          <div className="map-container-fullscreen story-map-container" ref={containerRef} />
         </div>
-      ) : null}
+        {act === "map" || act === "modal" || act === "final" ? <img className="hands-map-overlay" src={HANDS_MAP_IMAGE} alt="" /> : null}
+      </div>
 
       <div className="cinematic-topbar">
         <BrandLogo href={`/${map.lang}`} />
+        {act !== "ready" && act !== "map" && act !== "modal" && act !== "final" ? (
+          <button className="skip-cinematic-button" type="button" onClick={skipToMap}>{copy.skip}</button>
+        ) : null}
       </div>
 
       <AnimatePresence>
-        {phase === "intro" ? (
+        {act === "ready" ? (
           <motion.section className="cinematic-intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="cinematic-globe-wrap" initial={{ opacity: 0, scale: 0.78 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.9 }} aria-hidden="true">
-              <div className="cinematic-globe">
-                <span className="globe-shine" />
-              </div>
-              <span className="globe-orbit orbit-one" />
-              <span className="globe-orbit orbit-two" />
-            </motion.div>
-            <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>{copy.intro1}</motion.p>
-            <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>{map.title}</motion.h1>
-            <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.25 }}>{copy.intro2}</motion.p>
-            <motion.button className="btn-cta" type="button" onClick={startStory} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 1.7 }}>
+            <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}>{map.title}</motion.h1>
+            <motion.button className="btn-cta" type="button" onClick={() => runFullSequence(0)} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
               {copy.start}
             </motion.button>
           </motion.section>
         ) : null}
 
-        {phase === "flying" ? (
-          <>
-            <motion.div className="cinematic-warp-overlay" data-stage={travelStage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="space-stars stars-a" aria-hidden="true" />
-              <div className="space-stars stars-b" aria-hidden="true" />
-              <div className="warp-speed-lines" aria-hidden="true" />
-              <div className="warp-tunnel" aria-hidden="true" />
-              {(travelStage === "globe" || travelStage === "launch") ? (
-                <motion.div className="warp-globe-mini" initial={{ x: "-50%", y: "-50%", scale: 0.6, opacity: 0 }} animate={{ x: "-50%", y: "-50%", scale: 1, opacity: 1 }} exit={{ x: "-50%", y: "-50%", scale: 1.4, opacity: 0 }}>
-                  <span />
-                </motion.div>
-              ) : null}
+        {act === "space" ? (
+          <motion.section className="space-act" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="space-stars stars-a" />
+            <div className="space-stars stars-b" />
+            <motion.div className="space-globe-approach" initial={{ scale: 0.28, opacity: 0.7 }} animate={{ scale: 1.55, opacity: 1 }} transition={{ duration: isMobile ? 2.5 : 3.6, ease: "easeInOut" }}>
+              <SpaceGlobe />
             </motion.div>
-            <motion.div className="cinematic-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              {currentPoint?.place_name}
-            </motion.div>
-          </>
+          </motion.section>
         ) : null}
 
-        {phase === "pin" && currentPoint ? (
-          <motion.button className="cinematic-location-prompt" type="button" onClick={() => revealMemory()} initial={{ opacity: 0, x: "-50%", y: 26, scale: 0.86 }} animate={{ opacity: 1, x: "-50%", y: 0, scale: 1 }} exit={{ opacity: 0, x: "-50%", y: -16, scale: 0.94 }}>
+        {act === "clouds" ? (
+          <motion.section className="clouds-act" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="cloud-layer cloud-one" />
+            <div className="cloud-layer cloud-two" />
+            <div className="cloud-layer cloud-three" />
+          </motion.section>
+        ) : null}
+
+        {act === "flash" ? (
+          <motion.section className="flash-act" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {flashImages.map((src, index) => (
+              <img
+                alt=""
+                className={`flash-image flash-${index % 8}`}
+                key={`${src}-${index}`}
+                src={src}
+                style={{ animationDelay: `${index * 90}ms` }}
+              />
+            ))}
+          </motion.section>
+        ) : null}
+
+        {act === "map" && currentPoint ? (
+          <motion.button className="cinematic-location-prompt" type="button" onClick={() => setAct("modal")} initial={{ opacity: 0, x: "-50%", y: 26, scale: 0.86 }} animate={{ opacity: 1, x: "-50%", y: 0, scale: 1 }} exit={{ opacity: 0, x: "-50%", y: -16, scale: 0.94 }}>
             <span className="location-pin-icon" aria-hidden="true">⌖</span>
             <strong>{currentPoint.title || currentPoint.place_name}</strong>
             <small>{copy.tapPin}</small>
           </motion.button>
         ) : null}
 
-        {phase === "modal" && currentPoint ? (
+        {act === "modal" && currentPoint ? (
           <motion.section className="cinematic-memory-modal" initial={{ opacity: 0, y: 36, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }}>
             {currentPoint.media_url ? (
               <div className="cinematic-memory-media">
@@ -366,13 +426,13 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
           </motion.section>
         ) : null}
 
-        {phase === "final" ? (
+        {act === "final" ? (
           <motion.section className="cinematic-final" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="cinematic-final-scroll" tabIndex={0}>
               <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
             <div className="cinematic-final-actions">
-              <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.replay}</button>
+              <button className="btn-secondary" type="button" onClick={() => runFullSequence(0)}>{copy.replay}</button>
               <article className="recipient-gift-cta">
                 <h2>{copy.giftCtaTitle}</h2>
                 <p>{copy.giftCtaText}</p>
@@ -382,19 +442,6 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
           </motion.section>
         ) : null}
       </AnimatePresence>
-
-      <section className="memory-dock cinematic-dock" aria-label={copy.memories}>
-        {map.points.map((point, index) => (
-          <button className={`memory-dock-card ${index === activeIndex ? "active" : ""}`} key={point.id} type="button" onClick={() => flyToMemory(index)}>
-            {point.media_url ? point.media_type === "video" ? <video src={point.media_url} muted playsInline /> : <img src={point.media_url} alt={point.title || point.place_name} /> : <span className="memory-placeholder" />}
-            <span>
-              <strong>{point.title || point.place_name}</strong>
-              <small>{point.place_name}</small>
-            </span>
-          </button>
-        ))}
-      </section>
-
     </main>
   );
 }

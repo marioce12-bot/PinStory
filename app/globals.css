@@ -1522,6 +1522,217 @@ button.audio-track-card {
   background: #05070b;
 }
 
+.story-experience {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000005;
+}
+
+.story-map-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  background: #05070b;
+}
+
+.story-map-paper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0b1118;
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1), filter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.act-space .story-map-paper,
+.act-clouds .story-map-paper,
+.act-flash .story-map-paper,
+.act-ready .story-map-paper {
+  transform: scale(0.86) rotate(-1.5deg);
+  filter: blur(2px) brightness(0.58);
+}
+
+.act-map .story-map-paper,
+.act-modal .story-map-paper,
+.act-final .story-map-paper {
+  inset: 6vh 4vw 22vh;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 32px 28px 38px 24px;
+  box-shadow: 0 38px 120px rgba(0, 0, 0, 0.42);
+  transform: rotate(-1.2deg);
+  filter: saturate(1.02) contrast(1.02);
+}
+
+.story-map-container,
+.story-map-container .maplibregl-canvas-container,
+.story-map-container .maplibregl-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.hands-map-overlay {
+  position: absolute;
+  right: 0;
+  bottom: -2vh;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  height: 36vh;
+  object-fit: cover;
+  object-position: center 58%;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(18%);
+  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  mask-image: linear-gradient(transparent, black 18%, black 100%);
+}
+
+.act-map .hands-map-overlay,
+.act-modal .hands-map-overlay,
+.act-final .hands-map-overlay {
+  opacity: 0.92;
+  transform: translateY(0);
+}
+
+.skip-cinematic-button {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  background: rgba(5, 7, 11, 0.56);
+  color: #ffffff;
+  font-weight: 900;
+  backdrop-filter: blur(14px);
+}
+
+.space-act,
+.clouds-act,
+.flash-act {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.space-act {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(0, 234, 154, 0.1), transparent 30rem),
+    #000005;
+}
+
+.space-globe-approach {
+  width: clamp(13rem, 40vw, 30rem);
+  height: clamp(13rem, 40vw, 30rem);
+}
+
+.three-globe {
+  width: 100%;
+  height: 100%;
+}
+
+.three-globe canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.clouds-act {
+  background: linear-gradient(180deg, #000005 0%, #0a1628 18%, #1a3a6b 42%, #87ceeb 72%, #ffffff 100%);
+  animation: atmosphereShake 0.42s linear infinite;
+}
+
+.cloud-layer {
+  position: absolute;
+  inset: -30%;
+  background-image:
+    radial-gradient(ellipse at 18% 22%, rgba(255, 255, 255, 0.88) 0 9%, transparent 10%),
+    radial-gradient(ellipse at 62% 38%, rgba(255, 255, 255, 0.76) 0 13%, transparent 14%),
+    radial-gradient(ellipse at 42% 72%, rgba(255, 255, 255, 0.9) 0 14%, transparent 15%);
+  filter: blur(8px);
+  opacity: 0.8;
+  animation: cloudDive 2.2s cubic-bezier(0.34, 0.01, 0.12, 1) infinite;
+}
+
+.cloud-two {
+  opacity: 0.58;
+  transform: scale(1.25) rotate(8deg);
+  animation-duration: 1.55s;
+  animation-delay: -0.4s;
+}
+
+.cloud-three {
+  opacity: 0.42;
+  transform: scale(1.55) rotate(-7deg);
+  animation-duration: 1.05s;
+  animation-delay: -0.8s;
+}
+
+@keyframes cloudDive {
+  from { transform: translateY(-24%) scale(0.9); }
+  to { transform: translateY(24%) scale(1.35); }
+}
+
+@keyframes atmosphereShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(0.35rem, -0.18rem, 0); }
+  50% { transform: translate3d(-0.18rem, 0.28rem, 0); }
+  75% { transform: translate3d(0.2rem, 0.1rem, 0); }
+}
+
+.flash-act {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.flash-image {
+  position: absolute;
+  width: clamp(6rem, 18vw, 13rem);
+  aspect-ratio: 4 / 3;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  filter: blur(0.6px) saturate(1.06);
+  opacity: 0;
+  animation: flashFly 1.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.flash-0 { left: -20%; top: 10%; --tx: 138vw; --ty: 35vh; --rot: 13deg; }
+.flash-1 { right: -20%; top: 18%; --tx: -128vw; --ty: 28vh; --rot: -11deg; }
+.flash-2 { left: 20%; top: -20%; --tx: 44vw; --ty: 124vh; --rot: 9deg; }
+.flash-3 { right: 18%; bottom: -20%; --tx: -36vw; --ty: -124vh; --rot: -14deg; }
+.flash-4 { left: -18%; bottom: 20%; --tx: 122vw; --ty: -50vh; --rot: -8deg; }
+.flash-5 { right: -18%; bottom: 28%; --tx: -126vw; --ty: -36vh; --rot: 15deg; }
+.flash-6 { left: 48%; top: -22%; --tx: -30vw; --ty: 122vh; --rot: 6deg; }
+.flash-7 { right: 44%; bottom: -22%; --tx: 38vw; --ty: -122vh; --rot: -6deg; }
+
+@keyframes flashFly {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg) scale(0.72); }
+  15%, 70% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate3d(var(--tx), var(--ty), 0) rotate(var(--rot)) scale(1.16); }
+}
+
+.story-pin {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: rgba(0, 234, 154, 0.92);
+  box-shadow: 0 0 0 7px rgba(0, 234, 154, 0.16);
+  cursor: pointer;
+}
+
+.story-pin.muted {
+  opacity: 0.38;
+  filter: grayscale(0.8);
+}
+
+.story-pin.active {
+  animation: pulseMarker 1.45s infinite;
+}
+
 .cinematic-topbar {
   position: absolute;
   top: 1.25rem;
