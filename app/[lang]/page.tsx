@@ -265,6 +265,18 @@ export default async function LandingPage({
         <div className="pricing-grid">
           {(["mini", "souvenir", "eternal"] as const).map((plan, index) => (
             <article className={`pricing-card ${plan === "eternal" ? "featured" : ""}`} key={plan} data-reveal={index % 2 === 0 ? "slide-left" : "slide-right"}>
+              {plan === "mini" ? (
+                <div className="pricing-card-header-offer">
+                  <span>{isArabic ? "مجاني" : isEnglish ? "FREE" : "GRATUIT"}</span>
+                  <strong>
+                    {isArabic
+                      ? "أول تجربتين مجاناً"
+                      : isEnglish
+                        ? "First 2 trials free"
+                        : "2 premiers essais gratuits"}
+                  </strong>
+                </div>
+              ) : null}
               <h3>{dictionary.plans[plan]}</h3>
               <p className="price">{planPrices[plan]}</p>
               <ul>

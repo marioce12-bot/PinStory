@@ -895,6 +895,38 @@ button {
 
 .pricing-card {
   position: relative;
+  overflow: hidden;
+}
+
+.pricing-card-header-offer {
+  display: grid;
+  gap: 0.35rem;
+  margin: -1.5rem -1.5rem 1.25rem;
+  padding: 1rem 1.25rem;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.42), transparent 8rem),
+    linear-gradient(135deg, var(--accent-cta), #a7ffdf);
+  color: #061b14;
+  box-shadow: 0 14px 34px rgba(0, 234, 154, 0.2);
+}
+
+.pricing-card-header-offer span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: rgba(0, 0, 0, 0.82);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.pricing-card-header-offer strong {
+  font-family: var(--font-heading), serif;
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
 }
 
 .pricing-card.featured {
