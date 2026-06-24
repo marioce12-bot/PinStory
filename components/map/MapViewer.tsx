@@ -14,6 +14,7 @@ import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
 type StoryPhase = "locked" | "intro" | "flying" | "pin" | "modal" | "final";
+type TravelStage = "idle" | "launch" | "globe" | "dive";
 
 function getDirectionsUrl(point: MemoryMap["points"][number]) {
   const destination = point.place_name || `${point.latitude},${point.longitude}`;
@@ -85,8 +86,10 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<HTMLElement[]>([]);
   const flyTimeoutRef = useRef<number | null>(null);
+  const travelTimeoutsRef = useRef<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [phase, setPhase] = useState<StoryPhase>(map.secret_code ? "locked" : "intro");
+  const [travelStage, setTravelStage] = useState<TravelStage>("idle");
   const [hasInteractiveMap, setHasInteractiveMap] = useState(false);
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
     return () => {
       if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
+      travelTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
       instance.remove();
       mapRef.current = null;
       markersRef.current = [];
@@ -142,8 +146,21 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   }, [activeIndex, phase]);
 
   function revealMemory(index = activeIndex) {
+    setTravelStage("idle");
     setActiveIndex(index);
     setPhase("modal");
+  }
+
+  function queueTravelStep(callback: () => void, delay: number) {
+    const timeout = window.setTimeout(callback, delay);
+    travelTimeoutsRef.current.push(timeout);
+    return timeout;
+  }
+
+  function clearTravelSteps() {
+    if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
+    travelTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
+    travelTimeoutsRef.current = [];
   }
 
   function flyToMemory(index: number) {
@@ -152,43 +169,63 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
     setActiveIndex(index);
     setPhase("flying");
+    setTravelStage("launch");
 
-    if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
+    clearTravelSteps();
 
     if (mapRef.current) {
+      // Phase 1: décollage brutal vers une vue espace.
       mapRef.current.easeTo({
-        zoom: 1.15,
+        center: mapRef.current.getCenter(),
+        zoom: 1,
         pitch: 0,
         bearing: 0,
-        duration: 1400,
+        duration: 1200,
         essential: true,
       });
 
-      window.setTimeout(() => {
+      queueTravelStep(() => {
+        setTravelStage("globe");
+      }, 450);
+
+      // Phase 2: traversée latérale à hauteur espace vers la destination.
+      queueTravelStep(() => {
         mapRef.current?.easeTo({
           center: [point.longitude, point.latitude],
-          zoom: 2.15,
+          zoom: 1,
           pitch: 0,
-          bearing: index % 2 === 0 ? 42 : -42,
-          duration: 1800,
+          bearing: index % 2 === 0 ? 58 : -58,
+          duration: 800,
           essential: true,
         });
-      }, 1150);
+      }, 1200);
 
-      window.setTimeout(() => {
+      // Phase 3: plongée rapide vers le sol avec accélération.
+      queueTravelStep(() => {
+        setTravelStage("dive");
         mapRef.current?.flyTo({
           center: [point.longitude, point.latitude],
-          zoom: 15.8,
-          duration: 3200,
-          pitch: 45,
-          bearing: index % 2 === 0 ? 26 : -26,
+          zoom: 15,
+          duration: 2000,
+          pitch: 55,
+          bearing: index % 2 === 0 ? 32 : -32,
+          curve: 1.35,
+          easing: (t) => t * t,
           essential: true,
         });
-      }, 2850);
+      }, 2000);
 
-      flyTimeoutRef.current = window.setTimeout(() => setPhase("pin"), 6200);
+      flyTimeoutRef.current = window.setTimeout(() => {
+        setTravelStage("idle");
+        setPhase("pin");
+      }, 4100);
     } else {
-      flyTimeoutRef.current = window.setTimeout(() => setPhase("pin"), 1000);
+      queueTravelStep(() => setTravelStage("globe"), 450);
+      queueTravelStep(() => setTravelStage("dive"), 1100);
+      flyTimeoutRef.current = window.setTimeout(() => {
+        setTravelStage("idle");
+        setPhase("pin");
+      }, 1900);
     }
   }
 
@@ -247,7 +284,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   }
 
   return (
-    <main className={`cinematic-map-shell phase-${phase}`}>
+    <main className={`cinematic-map-shell phase-${phase} travel-${travelStage}`}>
       <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
       <div ref={containerRef} className="map-container-fullscreen" />
 
@@ -294,13 +331,26 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
         ) : null}
 
         {phase === "flying" ? (
-          <motion.div className="cinematic-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-            {currentPoint?.place_name}
-          </motion.div>
+          <>
+            <motion.div className="cinematic-warp-overlay" data-stage={travelStage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="space-stars stars-a" aria-hidden="true" />
+              <div className="space-stars stars-b" aria-hidden="true" />
+              <div className="warp-speed-lines" aria-hidden="true" />
+              <div className="warp-tunnel" aria-hidden="true" />
+              {(travelStage === "globe" || travelStage === "launch") ? (
+                <motion.div className="warp-globe-mini" initial={{ x: "-50%", y: "-50%", scale: 0.6, opacity: 0 }} animate={{ x: "-50%", y: "-50%", scale: 1, opacity: 1 }} exit={{ x: "-50%", y: "-50%", scale: 1.4, opacity: 0 }}>
+                  <span />
+                </motion.div>
+              ) : null}
+            </motion.div>
+            <motion.div className="cinematic-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
+              {currentPoint?.place_name}
+            </motion.div>
+          </>
         ) : null}
 
         {phase === "pin" && currentPoint ? (
-          <motion.button className="cinematic-location-prompt" type="button" onClick={() => revealMemory()} initial={{ opacity: 0, y: 26, scale: 0.86 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -16, scale: 0.94 }}>
+          <motion.button className="cinematic-location-prompt" type="button" onClick={() => revealMemory()} initial={{ opacity: 0, x: "-50%", y: 26, scale: 0.86 }} animate={{ opacity: 1, x: "-50%", y: 0, scale: 1 }} exit={{ opacity: 0, x: "-50%", y: -16, scale: 0.94 }}>
             <span className="location-pin-icon" aria-hidden="true">⌖</span>
             <strong>{currentPoint.title || currentPoint.place_name}</strong>
             <small>{copy.tapPin}</small>
