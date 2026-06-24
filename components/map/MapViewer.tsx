@@ -13,7 +13,7 @@ import { getMapTilerStyle } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
-type StoryPhase = "locked" | "intro" | "flying" | "modal" | "final";
+type StoryPhase = "locked" | "intro" | "flying" | "pin" | "modal" | "final";
 
 function getDirectionsUrl(point: MemoryMap["points"][number]) {
   const destination = point.place_name || `${point.latitude},${point.longitude}`;
@@ -24,10 +24,12 @@ function getCopy(lang: MemoryMap["lang"]) {
   if (lang === "ar") {
     return {
       intro1: "استعد لرحلة صغيرة بين الذكريات...",
-      intro2: "اضغط لتكتشف القصة على الخريطة.",
+      intro2: "تدور الأرض... ثم نقترب من أول ذكرى.",
       start: "اكتشف الخريطة",
+      tapPin: "اضغط على علامة الموقع لفتح الذكرى",
       continue: "متابعة الرحلة",
       finish: "إنهاء الرحلة",
+      replay: "إعادة الرحلة",
       directions: "اذهب إلى الذكرى",
       privateAlbum: "ألبوم خاص",
       enterCode: "أدخل الرمز السري لفتح هذا PinStory.",
@@ -42,10 +44,12 @@ function getCopy(lang: MemoryMap["lang"]) {
   if (lang === "en") {
     return {
       intro1: "Get ready to relive this journey...",
-      intro2: "Tap to discover the story on the map.",
+      intro2: "The globe turns... then we zoom into your first memory.",
       start: "Discover my map",
+      tapPin: "Tap the location pin to open the memory",
       continue: "Continue the journey",
       finish: "End the journey",
+      replay: "Replay the journey",
       directions: "Get Directions",
       privateAlbum: "Private album",
       enterCode: "Enter the secret code to open this PinStory.",
@@ -59,10 +63,12 @@ function getCopy(lang: MemoryMap["lang"]) {
 
   return {
     intro1: "Préparez-vous à revivre ce voyage...",
-    intro2: "Touchez l’écran pour découvrir l’histoire sur la carte.",
+    intro2: "Le globe tourne... puis on plonge vers votre premier souvenir.",
     start: "Découvrir ma carte",
+    tapPin: "Appuyez sur l’icône de localisation pour ouvrir le souvenir",
     continue: "Continuer le voyage",
     finish: "Terminer le voyage",
+    replay: "Refaire le voyage",
     directions: "S’y rendre",
     privateAlbum: "Album privé",
     enterCode: "Entrez le code secret pour ouvrir ce PinStory.",
@@ -131,9 +137,14 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
-      marker.classList.toggle("marker-active", index === activeIndex && phase === "modal");
+      marker.classList.toggle("marker-active", index === activeIndex && (phase === "pin" || phase === "modal"));
     });
   }, [activeIndex, phase]);
+
+  function revealMemory(index = activeIndex) {
+    setActiveIndex(index);
+    setPhase("modal");
+  }
 
   function flyToMemory(index: number) {
     const point = map.points[index];
@@ -145,17 +156,39 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
     if (flyTimeoutRef.current) window.clearTimeout(flyTimeoutRef.current);
 
     if (mapRef.current) {
-      mapRef.current.flyTo({
-        center: [point.longitude, point.latitude],
-        zoom: 16,
-        duration: 4000,
-        pitch: 45,
-        bearing: index % 2 === 0 ? 18 : -18,
+      mapRef.current.easeTo({
+        zoom: 1.15,
+        pitch: 0,
+        bearing: 0,
+        duration: 1400,
         essential: true,
       });
-      flyTimeoutRef.current = window.setTimeout(() => setPhase("modal"), 4200);
+
+      window.setTimeout(() => {
+        mapRef.current?.easeTo({
+          center: [point.longitude, point.latitude],
+          zoom: 2.15,
+          pitch: 0,
+          bearing: index % 2 === 0 ? 42 : -42,
+          duration: 1800,
+          essential: true,
+        });
+      }, 1150);
+
+      window.setTimeout(() => {
+        mapRef.current?.flyTo({
+          center: [point.longitude, point.latitude],
+          zoom: 15.8,
+          duration: 3200,
+          pitch: 45,
+          bearing: index % 2 === 0 ? 26 : -26,
+          essential: true,
+        });
+      }, 2850);
+
+      flyTimeoutRef.current = window.setTimeout(() => setPhase("pin"), 6200);
     } else {
-      flyTimeoutRef.current = window.setTimeout(() => setPhase("modal"), 700);
+      flyTimeoutRef.current = window.setTimeout(() => setPhase("pin"), 1000);
     }
   }
 
@@ -166,19 +199,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   function continueJourney() {
     const nextIndex = activeIndex + 1;
     if (nextIndex < map.points.length) {
-      setPhase("flying");
-      if (mapRef.current && currentPoint) {
-        mapRef.current.flyTo({
-          center: [currentPoint.longitude, currentPoint.latitude],
-          zoom: 7,
-          duration: 1200,
-          pitch: 15,
-          essential: true,
-        });
-        window.setTimeout(() => flyToMemory(nextIndex), 1100);
-      } else {
-        flyToMemory(nextIndex);
-      }
+      flyToMemory(nextIndex);
       return;
     }
 
@@ -256,6 +277,13 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       <AnimatePresence>
         {phase === "intro" ? (
           <motion.section className="cinematic-intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="cinematic-globe-wrap" initial={{ opacity: 0, scale: 0.78 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.9 }} aria-hidden="true">
+              <div className="cinematic-globe">
+                <span className="globe-shine" />
+              </div>
+              <span className="globe-orbit orbit-one" />
+              <span className="globe-orbit orbit-two" />
+            </motion.div>
             <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>{copy.intro1}</motion.p>
             <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>{map.title}</motion.h1>
             <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.25 }}>{copy.intro2}</motion.p>
@@ -269,6 +297,14 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
           <motion.div className="cinematic-caption" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
             {currentPoint?.place_name}
           </motion.div>
+        ) : null}
+
+        {phase === "pin" && currentPoint ? (
+          <motion.button className="cinematic-location-prompt" type="button" onClick={() => revealMemory()} initial={{ opacity: 0, y: 26, scale: 0.86 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -16, scale: 0.94 }}>
+            <span className="location-pin-icon" aria-hidden="true">⌖</span>
+            <strong>{currentPoint.title || currentPoint.place_name}</strong>
+            <small>{copy.tapPin}</small>
+          </motion.button>
         ) : null}
 
         {phase === "modal" && currentPoint ? (
@@ -294,7 +330,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
             <div className="cinematic-final-scroll" tabIndex={0}>
               <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
-            <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.start}</button>
+            <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.replay}</button>
           </motion.section>
         ) : null}
       </AnimatePresence>
