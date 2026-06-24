@@ -401,6 +401,74 @@ button {
   letter-spacing: -0.04em;
 }
 
+.theme-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.theme-choice-card {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  min-height: 7rem;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-main);
+  text-align: start;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+.theme-choice-card:hover:not(:disabled),
+.theme-choice-card.active {
+  border-color: var(--accent-cta);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 234, 154, 0.14);
+}
+
+.theme-choice-card.disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.theme-choice-card strong {
+  font-weight: 900;
+}
+
+.theme-choice-card small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.theme-swatch {
+  display: block;
+  width: 100%;
+  height: 2.7rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.theme-swatch.minimalist {
+  background: linear-gradient(135deg, #e7f1ee, #fbf2e4);
+}
+
+.theme-swatch.pastel {
+  background: linear-gradient(135deg, #fff5f5, #eff7ff);
+}
+
+.theme-swatch.dark-luxe {
+  background: linear-gradient(135deg, #11141a, #2d3140);
+}
+
+.theme-swatch.premium-gold {
+  background: linear-gradient(135deg, #11141a, #ffb703);
+}
+
 [dir="rtl"] .language-menu-panel {
   right: auto;
   left: 0;

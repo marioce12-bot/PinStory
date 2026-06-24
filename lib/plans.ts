@@ -21,7 +21,7 @@ export const PLAN_LIMITS = {
     customQrLogo: false,
     slideshow: false,
     durationDays: 30,
-    themes: ["minimalist", "pastel"],
+    themes: ["minimalist"],
   },
   souvenir: {
     price: 500,

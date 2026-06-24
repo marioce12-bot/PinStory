@@ -48,6 +48,8 @@ type NominatimPlace = {
   lat?: string;
 };
 
+const ALL_THEMES = ["minimalist", "pastel", "dark-luxe", "premium-gold"] as const satisfies readonly ThemeStyle[];
+
 const MAX_UPLOAD_IMAGE_SIZE = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
 const UPLOAD_TIMEOUT_MS = 45000;
@@ -181,6 +183,19 @@ export function Configurator({
   const limits = PLAN_LIMITS[plan];
   const availableThemes = limits.themes as readonly ThemeStyle[];
   const activePoint = points.find((point) => point.id === activePointId) || points[0];
+
+  function getThemeLabel(item: ThemeStyle) {
+    switch (item) {
+      case "minimalist":
+        return isArabic ? "بسيط" : isEnglish ? "Minimalist" : "Minimaliste";
+      case "pastel":
+        return isArabic ? "باستيل" : "Pastel";
+      case "dark-luxe":
+        return isArabic ? "فاخر داكن" : isEnglish ? "Dark luxe" : "Sombre luxe";
+      case "premium-gold":
+        return isArabic ? "ذهبي فاخر" : isEnglish ? "Premium gold" : "Premium doré";
+    }
+  }
 
   function updatePoint(id: string, patch: Partial<MemoryPoint>) {
     setPoints((current) => current.map((point) => (point.id === id ? { ...point, ...patch } : point)));
@@ -507,13 +522,50 @@ export function Configurator({
 
           <div className="form-field">
             <label htmlFor="theme">Thème</label>
-            <select id="theme" value={theme} onChange={(event) => setTheme(event.target.value as ThemeStyle)}>
-              {availableThemes.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+            <div className="theme-choice-grid" id="theme" role="radiogroup" aria-label="Theme">
+              {ALL_THEMES.map((item) => {
+                const isAvailable = availableThemes.includes(item);
+                const isSelected = theme === item;
+
+                return (
+                  <button
+                    className={`theme-choice-card ${isSelected ? "active" : ""} ${!isAvailable ? "disabled" : ""}`}
+                    key={item}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-disabled={!isAvailable}
+                    disabled={!isAvailable}
+                    onClick={() => setTheme(item)}
+                  >
+                    <span className={`theme-swatch ${item}`} aria-hidden="true" />
+                    <strong>{getThemeLabel(item)}</strong>
+                    {!isAvailable ? (
+                      <small>
+                        {isArabic
+                          ? "متاح في عرض أعلى"
+                          : isEnglish
+                            ? "Higher plan"
+                            : "Offre supérieure"}
+                      </small>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <small className="field-hint">
+              {plan === "mini"
+                ? isArabic
+                  ? "خطة Mini تستخدم حالياً الثيم البسيط فقط."
+                  : isEnglish
+                    ? "Mini currently uses the Minimalist theme only."
+                    : "Mini utilise actuellement uniquement le thème minimaliste."
+                : isArabic
+                  ? "اختر الثيم المتاح في خطتك."
+                  : isEnglish
+                    ? "Choose any theme included in your plan."
+                    : "Choisissez un thème inclus dans votre formule."}
+            </small>
           </div>
 
           <AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} />
