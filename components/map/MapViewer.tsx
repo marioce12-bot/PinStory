@@ -7,10 +7,9 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import { QRCodeCanvas } from "qrcode.react";
 import { BackgroundMusic } from "@/components/map/BackgroundMusic";
 import { BrandLogo } from "@/components/shared/BrandLogo";
-import { getMapboxStyle, PLAN_LIMITS } from "@/lib/plans";
+import { getMapboxStyle } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
@@ -29,10 +28,7 @@ function getCopy(lang: MemoryMap["lang"]) {
       start: "اكتشف الخريطة",
       continue: "متابعة الرحلة",
       finish: "إنهاء الرحلة",
-      copy: "نسخ الرابط",
-      copied: "تم نسخ الرابط",
       directions: "اذهب إلى الذكرى",
-      downloadQr: "تحميل رمز QR",
       privateAlbum: "ألبوم خاص",
       enterCode: "أدخل الرمز السري لفتح هذا PinStory.",
       codePlaceholder: "الرمز السري",
@@ -50,10 +46,7 @@ function getCopy(lang: MemoryMap["lang"]) {
       start: "Discover my map",
       continue: "Continue the journey",
       finish: "End the journey",
-      copy: "Copy link",
-      copied: "Link copied",
       directions: "Get Directions",
-      downloadQr: "Download QR",
       privateAlbum: "Private album",
       enterCode: "Enter the secret code to open this PinStory.",
       codePlaceholder: "Secret code",
@@ -70,10 +63,7 @@ function getCopy(lang: MemoryMap["lang"]) {
     start: "Découvrir ma carte",
     continue: "Continuer le voyage",
     finish: "Terminer le voyage",
-    copy: "Copier le lien",
-    copied: "Lien copié",
     directions: "S’y rendre",
-    downloadQr: "Télécharger le QR",
     privateAlbum: "Album privé",
     enterCode: "Entrez le code secret pour ouvrir ce PinStory.",
     codePlaceholder: "Code secret",
@@ -84,31 +74,18 @@ function getCopy(lang: MemoryMap["lang"]) {
   };
 }
 
-export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dictionary }) {
+export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const qrRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<HTMLElement[]>([]);
   const flyTimeoutRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [phase, setPhase] = useState<StoryPhase>(map.secret_code ? "locked" : "intro");
-  const [showQr, setShowQr] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
-  const [publicUrl, setPublicUrl] = useState(`/map/${map.id}`);
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const currentPoint = map.points[activeIndex] || map.points[0];
-  const canShowQr = PLAN_LIMITS[map.plan].qrCode;
   const copy = useMemo(() => getCopy(map.lang), [map.lang]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setPublicUrl(`${window.location.origin}/map/${map.id}`);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [map.id]);
 
   useEffect(() => {
     if (!containerRef.current || !mapboxToken || mapRef.current || map.points.length === 0) return;
@@ -209,22 +186,6 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
     }
   }
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(publicUrl);
-    setCopyStatus(copy.copied);
-    window.setTimeout(() => setCopyStatus(null), 1800);
-  }
-
-  function downloadQrCode() {
-    const canvas = qrRef.current?.querySelector("canvas");
-    if (!canvas) return;
-
-    const link = document.createElement("a");
-    link.download = `pinstory-${map.id}-qr.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  }
-
   function unlockAlbum() {
     if (!map.secret_code || secretInput.trim() === map.secret_code) {
       setPhase("intro");
@@ -261,7 +222,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
   }
 
   return (
-    <main className="cinematic-map-shell">
+    <main className={`cinematic-map-shell phase-${phase}`}>
       <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
       {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
 
@@ -284,11 +245,6 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
 
       <div className="cinematic-topbar">
         <BrandLogo href={`/${map.lang}`} />
-        <div className="map-link-actions">
-          <button className="btn-secondary" type="button" onClick={copyLink}>{copy.copy}</button>
-          {canShowQr ? <button className="btn-secondary" type="button" onClick={() => setShowQr((value) => !value)}>{dictionary.map.open_qr}</button> : null}
-          {copyStatus ? <span className="copy-status">{copyStatus}</span> : null}
-        </div>
       </div>
 
       <AnimatePresence>
@@ -329,7 +285,7 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
 
         {phase === "final" ? (
           <motion.section className="cinematic-final" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="cinematic-final-scroll">
+            <div className="cinematic-final-scroll" tabIndex={0}>
               <p>{map.finalMessage || copy.finalFallback}</p>
             </div>
             <button className="btn-secondary" type="button" onClick={() => flyToMemory(0)}>{copy.start}</button>
@@ -349,12 +305,6 @@ export function MapViewer({ map, dictionary }: { map: MemoryMap; dictionary: Dic
         ))}
       </section>
 
-      {showQr && canShowQr ? (
-        <div className="qr-panel cinematic-qr-panel" ref={qrRef}>
-          <QRCodeCanvas value={publicUrl} size={220} level="H" includeMargin />
-          <button className="btn-secondary" type="button" onClick={downloadQrCode}>{copy.downloadQr}</button>
-        </div>
-      ) : null}
     </main>
   );
 }

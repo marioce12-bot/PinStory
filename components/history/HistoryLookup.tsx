@@ -20,9 +20,11 @@ function copyFor(lang: Locale) {
   if (lang === "ar") {
     return {
       title: "ذكرياتك النشطة",
-      description: "أدخل بريدك الإلكتروني لرؤية روابط PinStory التي ما زالت صالحة ولم تنتهِ.",
+      description: "أدخل بريدك الإلكتروني ورمز الحساب السري لعرض روابط PinStory التي ما زالت صالحة.",
       email: "البريد الإلكتروني",
+      secret: "رمز الحساب السري",
       placeholder: "user@example.com",
+      secretPlaceholder: "الرمز الذي اخترته عند إنشاء حسابك",
       submit: "عرض الذكريات",
       empty: "لا توجد ذكريات نشطة لهذا البريد الإلكتروني.",
       open: "فتح",
@@ -37,9 +39,11 @@ function copyFor(lang: Locale) {
   if (lang === "en") {
     return {
       title: "Your active memories",
-      description: "Enter your email to see the PinStory links that are still valid and not expired.",
+      description: "Enter your email and account secret code to see PinStory links that are still valid.",
       email: "Email",
+      secret: "Account secret code",
       placeholder: "user@example.com",
+      secretPlaceholder: "The code you chose when creating your account",
       submit: "Show memories",
       empty: "No active memories found for this email.",
       open: "Open",
@@ -53,9 +57,11 @@ function copyFor(lang: Locale) {
 
   return {
     title: "Vos souvenirs actifs",
-    description: "Entrez votre email pour retrouver les liens PinStory encore valides et non expirés.",
+    description: "Entrez votre email et le code secret du compte pour retrouver vos liens PinStory encore valides.",
     email: "Email",
+    secret: "Code secret du compte",
     placeholder: "user@example.com",
+    secretPlaceholder: "Le code choisi lors de la création du compte",
     submit: "Voir mes souvenirs",
     empty: "Aucun souvenir actif trouvé pour cet email.",
     open: "Ouvrir",
@@ -70,6 +76,7 @@ function copyFor(lang: Locale) {
 export function HistoryLookup({ lang }: { lang: Locale }) {
   const t = copyFor(lang);
   const [email, setEmail] = useState("");
+  const [accountSecret, setAccountSecret] = useState("");
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,7 +87,7 @@ export function HistoryLookup({ lang }: { lang: Locale }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/history?email=${encodeURIComponent(email.trim())}`);
+      const response = await fetch(`/api/history?email=${encodeURIComponent(email.trim())}&account_secret=${encodeURIComponent(accountSecret.trim())}`);
       const payload = (await response.json()) as { maps?: HistoryItem[]; error?: string };
 
       if (!response.ok) {
@@ -112,7 +119,7 @@ export function HistoryLookup({ lang }: { lang: Locale }) {
         <p className="section-copy">{t.description}</p>
       </div>
 
-      <div className="history-form">
+      <div className="history-form history-form-large">
         <label className="form-field" htmlFor="history-email">
           <span>{t.email}</span>
           <input
@@ -120,13 +127,25 @@ export function HistoryLookup({ lang }: { lang: Locale }) {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            placeholder={t.placeholder}
+            autoComplete="email"
+          />
+        </label>
+        <label className="form-field" htmlFor="history-secret">
+          <span>{t.secret}</span>
+          <input
+            id="history-secret"
+            type="password"
+            value={accountSecret}
+            onChange={(event) => setAccountSecret(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") void loadHistory();
             }}
-            placeholder={t.placeholder}
+            placeholder={t.secretPlaceholder}
+            autoComplete="current-password"
           />
         </label>
-        <button className="btn-cta" type="button" onClick={() => void loadHistory()} disabled={isLoading || !email.includes("@")}>
+        <button className="btn-cta" type="button" onClick={() => void loadHistory()} disabled={isLoading || !email.includes("@") || accountSecret.trim().length < 4}>
           {isLoading ? "..." : t.submit}
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAccountId, hashAccountSecret, isValidAccountSecret } from "@/lib/account-secret";
 import { getFirebaseDb } from "@/lib/firebase-admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -42,15 +43,30 @@ function toHistoryItem(map: StoredMap, origin: string) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const email = normalizeEmail(url.searchParams.get("email") || "");
+  const accountSecret = url.searchParams.get("account_secret") || "";
 
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+  }
+
+  if (!isValidAccountSecret(accountSecret)) {
+    return NextResponse.json({ error: "A valid account secret code is required." }, { status: 400 });
   }
 
   const origin = url.origin;
   const firebaseDb = getFirebaseDb();
 
   if (firebaseDb) {
+    const account = await firebaseDb.collection("account_profiles").doc(getAccountId(email)).get();
+    if (!account.exists) {
+      return NextResponse.json({ error: "No PinStory account was found for this email." }, { status: 404 });
+    }
+
+    const accountData = account.data() as { secret_hash?: string } | undefined;
+    if (accountData?.secret_hash !== hashAccountSecret(accountSecret.trim())) {
+      return NextResponse.json({ error: "Incorrect account secret code." }, { status: 403 });
+    }
+
     const snapshot = await firebaseDb.collection("maps").where("client_email", "==", email).get();
     const maps = snapshot.docs
       .map((doc) => ({ id: doc.id, ...(doc.data() as Omit<StoredMap, "id">) }))

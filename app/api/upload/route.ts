@@ -227,7 +227,7 @@ export async function POST(request: Request) {
     const plan = String(formData.get("plan") || "free");
 
     if (!(file instanceof File)) return NextResponse.json({ error: "Missing file." }, { status: 400 });
-    if (file.type.startsWith("video/") && !file.type.startsWith("audio/") && plan !== "eternal") {
+    if (file.type.startsWith("video/") && plan !== "eternal" && plan !== "audio") {
       return NextResponse.json({ error: "Videos require the Eternal plan." }, { status: 403 });
     }
 

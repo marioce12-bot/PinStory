@@ -25,8 +25,8 @@ export default async function CheckoutSuccessPage({
           : "Le paiement est confirmé. Votre carte souvenir interactive est maintenant active."}
       </p>
       <div className="hero-actions">
-        <Link className="btn-cta" href={mapId ? `/map/${mapId}` : `/${lang}/create`}>
-          {mapId ? dictionary.navigation.preview : dictionary.cta.start}
+        <Link className="btn-cta" href={mapId ? `/${lang}/share?mapId=${mapId}` : `/${lang}/create`}>
+          {mapId ? (lang === "en" ? "Get link and QR Code" : "Obtenir le lien et le QR Code") : dictionary.cta.start}
         </Link>
       </div>
     </main>

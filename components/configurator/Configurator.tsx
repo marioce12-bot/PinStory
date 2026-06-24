@@ -42,6 +42,11 @@ const MAX_UPLOAD_IMAGE_SIZE = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
 const UPLOAD_TIMEOUT_MS = 45000;
 
+function getStoredValue(key: string) {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(key) || "";
+}
+
 async function compressImageForUpload(file: File) {
   if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
     return file;
@@ -142,8 +147,9 @@ export function Configurator({
   const plan = initialPlan;
   const memoryLang: Locale = lang;
   const [theme, setTheme] = useState<ThemeStyle>(PLAN_LIMITS[initialPlan].themes[0] as ThemeStyle);
-  const [email, setEmail] = useState("");
-  const [creatorEmail, setCreatorEmail] = useState("");
+  const [email, setEmail] = useState(() => getStoredValue("pinstory_creator_email"));
+  const [creatorEmail, setCreatorEmail] = useState(() => getStoredValue("pinstory_creator_email"));
+  const [accountSecret, setAccountSecret] = useState(() => getStoredValue("pinstory_account_secret"));
   const [showIdentityGate, setShowIdentityGate] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [secretCode, setSecretCode] = useState("");
@@ -295,9 +301,9 @@ export function Configurator({
     }
   }
 
-  async function submit(identityEmail = creatorEmail) {
+  async function submit(identityEmail = creatorEmail, identitySecret = accountSecret) {
     setStatus(null);
-    if (!identityEmail) {
+    if (!identityEmail || !identitySecret) {
       setIdentityError(null);
       setShowIdentityGate(true);
       return;
@@ -316,6 +322,7 @@ export function Configurator({
         finalMessage,
         audioUrl,
         secret_code: secretCode,
+        account_secret: identitySecret,
         points,
       }),
     });
@@ -328,7 +335,7 @@ export function Configurator({
 
     startTransition(() => {
       if (result.checkoutUrl) window.location.href = result.checkoutUrl;
-      else router.push(`/map/${result.id}`);
+      else router.push(`/${lang}/share?mapId=${result.id}`);
     });
   }
 
@@ -349,10 +356,17 @@ export function Configurator({
         return;
       }
 
+      if (accountSecret.trim().length < 4) {
+        setIdentityError(isArabic ? "اختر رمز حساب من 4 أحرف على الأقل." : isEnglish ? "Choose an account secret code of at least 4 characters." : "Choisissez un code secret de compte d’au moins 4 caractères.");
+        return;
+      }
+
       setCreatorEmail(nextEmail);
       setEmail(nextEmail);
+      window.localStorage.setItem("pinstory_creator_email", nextEmail);
+      window.localStorage.setItem("pinstory_account_secret", accountSecret.trim());
       setShowIdentityGate(false);
-      await submit(nextEmail);
+      await submit(nextEmail, accountSecret.trim());
     } catch (error) {
       const message = error instanceof Error ? error.message : "Google sign-in failed";
       setIdentityError(
@@ -379,10 +393,19 @@ export function Configurator({
       return;
     }
 
+    const normalizedSecret = accountSecret.trim();
+    if (normalizedSecret.length < 4) {
+      setIdentityError(isArabic ? "اختر رمز حساب من 4 أحرف على الأقل." : isEnglish ? "Choose an account secret code of at least 4 characters." : "Choisissez un code secret de compte d’au moins 4 caractères.");
+      return;
+    }
+
     setEmail(normalizedEmail);
     setCreatorEmail(normalizedEmail);
+    setAccountSecret(normalizedSecret);
+    window.localStorage.setItem("pinstory_creator_email", normalizedEmail);
+    window.localStorage.setItem("pinstory_account_secret", normalizedSecret);
     setShowIdentityGate(false);
-    void submit(normalizedEmail);
+    void submit(normalizedEmail, normalizedSecret);
   }
 
   return (
@@ -603,6 +626,26 @@ export function Configurator({
                 placeholder="user@example.com"
                 autoComplete="email"
               />
+            </div>
+            <div className="form-field">
+              <label htmlFor="account-secret">
+                {isArabic ? "رمز حسابك السري" : isEnglish ? "Your account secret code" : "Votre code secret de compte"}
+              </label>
+              <input
+                id="account-secret"
+                type="password"
+                value={accountSecret}
+                onChange={(event) => setAccountSecret(event.target.value)}
+                placeholder={isArabic ? "4 أحرف على الأقل" : isEnglish ? "At least 4 characters" : "Au moins 4 caractères"}
+                autoComplete="current-password"
+              />
+              <small className="field-hint">
+                {isArabic
+                  ? "سيُطلب هذا الرمز لاحقاً لعرض قائمة ذكرياتك بهذا البريد."
+                  : isEnglish
+                    ? "This code will be required later to view your memories for this email."
+                    : "Ce code sera demandé plus tard pour voir vos souvenirs liés à cet email."}
+              </small>
             </div>
             {identityError ? (
               <p className="secret-error" role="alert">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAccountId, hashAccountSecret, isValidAccountSecret } from "@/lib/account-secret";
 import { createFedaPayCheckout } from "@/lib/fedapay";
 import { getFirebaseDb } from "@/lib/firebase-admin";
 import { getPlanExpiry } from "@/lib/plans";
@@ -34,6 +35,35 @@ async function countActiveFreeMapsForEmail(email: string) {
   return 0;
 }
 
+async function verifyOrCreateAccountSecret(email: string, secret: string) {
+  if (!isValidAccountSecret(secret)) {
+    return { ok: false as const, error: "Choose a secret code of at least 4 characters for your account." };
+  }
+
+  const firebaseDb = getFirebaseDb();
+  if (!firebaseDb) return { ok: true as const };
+
+  const accountRef = firebaseDb.collection("account_profiles").doc(getAccountId(email));
+  const account = await accountRef.get();
+  const secretHash = hashAccountSecret(secret.trim());
+
+  if (!account.exists) {
+    await accountRef.set({
+      email,
+      secret_hash: secretHash,
+      created_at: new Date().toISOString(),
+    });
+    return { ok: true as const };
+  }
+
+  const data = account.data() as { secret_hash?: string } | undefined;
+  if (data?.secret_hash !== secretHash) {
+    return { ok: false as const, error: "Incorrect account secret code for this email." };
+  }
+
+  return { ok: true as const };
+}
+
 export async function POST(request: Request) {
   const payload = await request.json();
   const appUrl = new URL(request.url).origin;
@@ -52,6 +82,12 @@ export async function POST(request: Request) {
 
   if (!clientEmail) {
     return NextResponse.json({ error: "Email is required to create a PinStory." }, { status: 400 });
+  }
+
+  const accountSecret = String(data.account_secret || "");
+  const accountVerification = await verifyOrCreateAccountSecret(clientEmail, accountSecret);
+  if (!accountVerification.ok) {
+    return NextResponse.json({ error: accountVerification.error }, { status: 403 });
   }
 
   if (validation.plan === "free") {
@@ -80,6 +116,7 @@ export async function POST(request: Request) {
     expires_at: expiresAt,
     payment_status: paymentStatus,
     secret_code: typeof data.secret_code === "string" && data.secret_code.trim() ? data.secret_code.trim() : null,
+    account_id: getAccountId(clientEmail),
     audioUrl: typeof data.audioUrl === "string" && data.audioUrl.trim() ? data.audioUrl.trim() : null,
     points: validation.points.map((point, index) => ({
       id: point.id || crypto.randomUUID(),
