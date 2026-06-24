@@ -49,6 +49,9 @@ type NominatimPlace = {
 };
 
 const ALL_THEMES = ["minimalist", "pastel", "dark-luxe", "premium-gold"] as const satisfies readonly ThemeStyle[];
+const RECIPIENT_TYPES = ["self", "friend", "partner", "best_friend", "acquaintance"] as const;
+type RecipientType = (typeof RECIPIENT_TYPES)[number];
+type PlaceParts = { country: string; city: string; district: string };
 
 const MAX_UPLOAD_IMAGE_SIZE = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.68;
@@ -166,6 +169,10 @@ export function Configurator({
   const [identityError, setIdentityError] = useState<string | null>(null);
   const [secretCode, setSecretCode] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
+  const [step, setStep] = useState(1);
+  const [recipientType, setRecipientType] = useState<RecipientType>("partner");
+  const [recipientName, setRecipientName] = useState("");
+  const [placeParts, setPlaceParts] = useState<Record<string, PlaceParts>>({});
   const [title, setTitle] = useState(lang === "ar" ? "قصتنا" : lang === "en" ? "Our story" : "Notre histoire");
   const [message, setMessage] = useState(lang === "ar" ? "خريطة حيّة لنا." : lang === "en" ? "A living map of us." : "Une carte vivante de nous.");
   const [finalMessage, setFinalMessage] = useState(
@@ -195,6 +202,30 @@ export function Configurator({
       case "premium-gold":
         return isArabic ? "ذهبي فاخر" : isEnglish ? "Premium gold" : "Premium doré";
     }
+  }
+
+  function getRecipientLabel(item: RecipientType) {
+    const labels = {
+      self: isArabic ? "لي" : isEnglish ? "For me" : "Pour moi",
+      friend: isArabic ? "لصديق" : isEnglish ? "A friend" : "Un ami",
+      partner: isArabic ? "لشريكي" : isEnglish ? "My partner" : "Mon/ma partenaire",
+      best_friend: isArabic ? "لأفضل صديق" : isEnglish ? "My best friend" : "Mon/ma meilleur(e) ami(e)",
+      acquaintance: isArabic ? "لمعرفة" : isEnglish ? "An acquaintance" : "Une connaissance",
+    } satisfies Record<RecipientType, string>;
+
+    return labels[item];
+  }
+
+  function updatePlacePart(point: MemoryPoint, field: keyof PlaceParts, value: string) {
+    const current = placeParts[point.id] || { country: "", city: "", district: "" };
+    const next = { ...current, [field]: value };
+    const query = [next.district, next.city, next.country].filter(Boolean).join(", ");
+
+    setPlaceParts((state) => ({ ...state, [point.id]: next }));
+    updatePoint(point.id, {
+      location_query: query,
+      place_name: query || point.place_name,
+    });
   }
 
   function updatePoint(id: string, patch: Partial<MemoryPoint>) {
@@ -364,6 +395,8 @@ export function Configurator({
         theme_style: theme,
         title,
         message,
+        recipient_type: recipientType,
+        recipient_name: recipientName,
         finalMessage,
         audioUrl,
         secret_code: secretCode,
@@ -453,14 +486,45 @@ export function Configurator({
     void submit(normalizedEmail, normalizedSecret);
   }
 
+  function getStepTitle(currentStep: number) {
+    if (currentStep === 1) return isArabic ? "لمن هذه الذكرى؟" : isEnglish ? "Who is this memory for?" : "Pour qui est ce souvenir ?";
+    if (currentStep === 2) return isArabic ? "أضف الصور والذكريات" : isEnglish ? "Add photos and memories" : "Ajoutez les photos et souvenirs";
+    if (currentStep === 3) return isArabic ? "رسالة النهاية والموسيقى" : isEnglish ? "Final message and music" : "Message final et musique";
+    return isArabic ? "مراجعة وإنشاء" : isEnglish ? "Review and create" : "Vérifier et créer";
+  }
+
+  function canGoNext() {
+    if (step === 1) return title.trim().length > 0 && (recipientType === "self" || recipientName.trim().length > 0);
+    if (step === 2) return points.length > 0 && points.every((point) => point.media_url && point.title.trim() && point.description.trim() && point.place_name.trim());
+    if (step === 3) return finalMessage.trim().length > 0;
+    return true;
+  }
+
+  function nextStep() {
+    setStep((current) => Math.min(current + 1, 4));
+  }
+
+  function previousStep() {
+    setStep((current) => Math.max(current - 1, 1));
+  }
+
   return (
     <main className="configurator-layout">
       <section className="configurator-sidebar" aria-label="Map configurator">
-        <div className="form-stack">
+        <div className="form-stack wizard-shell">
           <BrandLogo href={`/${lang}`} />
           <h1 className="section-title" style={{ fontSize: "clamp(2.2rem, 5vw, 4rem)" }}>
             {isArabic ? "أنشئ خريطة ذكرياتك" : isEnglish ? "Build your memory map" : "Construisez votre carte souvenir"}
           </h1>
+
+          <div className="wizard-progress" aria-label="Creation steps">
+            {[1, 2, 3, 4].map((item) => (
+              <button className={`wizard-step-dot ${step === item ? "active" : ""} ${step > item ? "done" : ""}`} key={item} type="button" onClick={() => setStep(item)}>
+                <span>{item}</span>
+                <small>{getStepTitle(item)}</small>
+              </button>
+            ))}
+          </div>
 
           <div className="selected-plan-card">
             <span>{isArabic ? "الخطة المختارة" : isEnglish ? "Selected plan" : "Formule choisie"}</span>
@@ -474,211 +538,169 @@ export function Configurator({
             </small>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="user@example.com" />
-            {creatorEmail ? (
-              <small className="field-hint">{isArabic ? `متصل كـ ${creatorEmail}` : isEnglish ? `Connected as ${creatorEmail}` : `Connecté avec ${creatorEmail}`}</small>
-            ) : null}
-          </div>
+          <section className="wizard-card">
+            <p className="popup-date">{isArabic ? `الخطوة ${step} من 4` : isEnglish ? `Step ${step} of 4` : `Étape ${step} sur 4`}</p>
+            <h2>{getStepTitle(step)}</h2>
 
-          <div className="form-field">
-            <label htmlFor="title">{isArabic ? "عنوان الخريطة" : isEnglish ? "Map title" : "Titre de la carte"}</label>
-            <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="message">Message</label>
-            <textarea id="message" rows={3} value={message} onChange={(event) => setMessage(event.target.value)} />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="final-message">{isArabic ? "رسالة النهاية" : isEnglish ? "Final message" : "Message final"}</label>
-            <textarea
-              id="final-message"
-              rows={4}
-              value={finalMessage}
-              onChange={(event) => setFinalMessage(event.target.value)}
-              placeholder={isArabic ? "اكتب رسالة ختامية تظهر في نهاية الرحلة..." : isEnglish ? "Write the closing message shown at the end..." : "Écrivez le message de conclusion affiché à la fin..."}
-            />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="secret-code">{isArabic ? "رمز سري (اختياري)" : isEnglish ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
-            <input
-              id="secret-code"
-              value={secretCode}
-              onChange={(event) => setSecretCode(event.target.value)}
-              placeholder={isArabic ? "مثال: 2405" : isEnglish ? "Example: 2405" : "Exemple : 2405"}
-            />
-            <small className="field-hint">
-              {isArabic
-                ? "إذا أضفته، يجب على الزوار كتابته قبل مشاهدة الألبوم من الرابط أو رمز QR."
-                : isEnglish
-                ? "If you add one, visitors must type it before seeing the album from the link or QR Code."
-                : "Si vous en ajoutez un, les visiteurs devront le saisir avant de voir l’album depuis le lien ou le QR Code."}
-            </small>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="theme">Thème</label>
-            <div className="theme-choice-grid" id="theme" role="radiogroup" aria-label="Theme">
-              {ALL_THEMES.map((item) => {
-                const isAvailable = availableThemes.includes(item);
-                const isSelected = theme === item;
-
-                return (
-                  <button
-                    className={`theme-choice-card ${isSelected ? "active" : ""} ${!isAvailable ? "disabled" : ""}`}
-                    key={item}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    aria-disabled={!isAvailable}
-                    disabled={!isAvailable}
-                    onClick={() => setTheme(item)}
-                  >
-                    <span className={`theme-swatch ${item}`} aria-hidden="true" />
-                    <strong>{getThemeLabel(item)}</strong>
-                    {!isAvailable ? (
-                      <small>
-                        {isArabic
-                          ? "متاح في عرض أعلى"
-                          : isEnglish
-                            ? "Higher plan"
-                            : "Offre supérieure"}
-                      </small>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-            <small className="field-hint">
-              {plan === "mini"
-                ? isArabic
-                  ? "خطة Mini تستخدم حالياً الثيم البسيط فقط."
-                  : isEnglish
-                    ? "Mini currently uses the Minimalist theme only."
-                    : "Mini utilise actuellement uniquement le thème minimaliste."
-                : isArabic
-                  ? "اختر الثيم المتاح في خطتك."
-                  : isEnglish
-                    ? "Choose any theme included in your plan."
-                    : "Choisissez un thème inclus dans votre formule."}
-            </small>
-          </div>
-
-          <AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} />
-
-          <div>
-            <h2>{isArabic ? "الذكريات" : isEnglish ? "Memories" : "Souvenirs"}</h2>
-            <p className="section-copy" style={{ marginBottom: "1rem" }}>
-              {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {isArabic ? "ذكريات مستخدمة" : isEnglish ? "memories used" : "souvenirs utilisés"}
-            </p>
-            {points.map((point) => (
-              <article className={`poi-card-item ${activePointId === point.id ? "active" : ""}`} key={point.id} onFocus={() => setActivePointId(point.id)}>
-                <div className="form-stack">
-                  <button className="segment-button" type="button" onClick={() => setActivePointId(point.id)}>
-                    {isArabic ? "تعديل هذه الذكرى" : isEnglish ? "Edit this memory" : "Modifier ce souvenir"} #{point.order}
-                  </button>
-
-                  <div className="form-field">
-                    <label>{isArabic ? "صورة أو فيديو" : isEnglish ? "Photo or video" : "Photo ou vidéo"}</label>
-                    {point.media_url ? (
-                      <div className="media-preview-card">
-                        {point.media_type === "video" ? (
-                          <video src={point.media_url} controls />
-                        ) : (
-                          <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />
-                        )}
-                      </div>
-                    ) : null}
-                    <input type="file" accept={limits.videos ? "image/*,video/*" : "image/*"} disabled={!limits.media} onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
-                    <small className="field-hint">
-                      {limits.media
-                        ? uploadingPointId === point.id
-                          ? isArabic
-                            ? "جاري الرفع..."
-                            : isEnglish
-                            ? "Uploading..."
-                            : "Upload en cours..."
-                          : limits.videos
-                            ? isArabic
-                              ? "أضف صورة أو فيديو لهذه الذكرى."
-                              : isEnglish
-                              ? "Upload one image or video for this memory."
-                              : "Ajoutez une image ou une vidéo pour ce souvenir."
-                            : isArabic
-                              ? "أضف صورة واحدة لهذه الذكرى."
-                              : isEnglish
-                              ? "Upload one photo for this memory."
-                              : "Ajoutez une photo pour ce souvenir."
-                        : isArabic
-                          ? "الوسائط غير مفعلة في المعاينة المجانية."
-                          : isEnglish
-                          ? "Media is disabled on the Free preview."
-                          : "Les médias sont désactivés sur l’aperçu gratuit."}
-                    </small>
-                  </div>
-
-                  <div className="form-field">
-                    <label>{isArabic ? "المكان" : isEnglish ? "Place" : "Lieu"}</label>
-                    <div className="place-search-row">
-                      <input
-                        value={point.location_query || point.place_name}
-                        onChange={(event) => updatePoint(point.id, { location_query: event.target.value, place_name: event.target.value })}
-                        placeholder={isArabic ? "برج إيفل، باريس، اسم فندق..." : isEnglish ? "Eiffel Tower, Paris, hotel name..." : "Tour Eiffel, Paris, nom d'hôtel..."}
-                      />
-                      <button className="btn-secondary" type="button" onClick={() => searchPlace(point)}>
-                        {isArabic ? "بحث" : isEnglish ? "Find" : "Trouver"}
+            {step === 1 ? (
+              <div className="form-stack">
+                <div className="form-field">
+                  <label>{isArabic ? "لمن تريد تقديم هذا الألبوم؟" : isEnglish ? "Who do you want to offer this memory to?" : "Pour qui voulez-vous offrir ce souvenir ?"}</label>
+                  <div className="recipient-grid">
+                    {RECIPIENT_TYPES.map((item) => (
+                      <button className={`segment-button ${recipientType === item ? "active" : ""}`} key={item} type="button" onClick={() => setRecipientType(item)}>
+                        {getRecipientLabel(item)}
                       </button>
-                    </div>
-                    <small className="field-hint">
-                      {isArabic
-                        ? "لا حاجة لإدخال إحداثيات. ابحث، انقر على المعاينة، أو استخدم موقعك الحالي."
-                        : isEnglish
-                        ? "No coordinates to type. Search, click the preview map, or use your current position."
-                        : "Aucune coordonnée à saisir. Cherchez, cliquez sur l’aperçu ou utilisez votre position."}
-                    </small>
-                  </div>
-
-                  <div className="poi-actions">
-                    <button className="btn-secondary" type="button" onClick={() => selectCurrentPosition(point)}>
-                      {isArabic ? "استخدم موقعي" : isEnglish ? "Use my position" : "Utiliser ma position"}
-                    </button>
-                    <button className="btn-secondary" type="button" onClick={() => removePoint(point.id)} disabled={points.length === 1}>
-                      {isArabic ? "حذف" : isEnglish ? "Remove" : "Retirer"}
-                    </button>
-                  </div>
-
-                  <div className="form-field">
-                    <label>{isArabic ? "العنوان" : isEnglish ? "Title" : "Titre"}</label>
-                    <input value={point.title} onChange={(event) => updatePoint(point.id, { title: event.target.value })} />
-                  </div>
-                  <div className="form-field">
-                    <label>Date</label>
-                    <input type="date" value={point.date || ""} onChange={(event) => updatePoint(point.id, { date: event.target.value })} />
-                  </div>
-                  <div className="form-field">
-                    <label>Description</label>
-                    <textarea rows={2} value={point.description} onChange={(event) => updatePoint(point.id, { description: event.target.value })} />
+                    ))}
                   </div>
                 </div>
-              </article>
-            ))}
-            <button className="btn-secondary" type="button" onClick={addPoint} disabled={points.length >= limits.maxPoints}>
-              {isArabic ? "إضافة ذكرى" : isEnglish ? "Add a memory" : "Ajouter un souvenir"}
-            </button>
-          </div>
+
+                {recipientType !== "self" ? (
+                  <div className="form-field">
+                    <label htmlFor="recipient-name">{isArabic ? "اسم الشخص" : isEnglish ? "Recipient name" : "Nom de la personne"}</label>
+                    <input id="recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder={isArabic ? "مثلاً: مريم" : isEnglish ? "Example: Sarah" : "Exemple : Sarah"} />
+                  </div>
+                ) : null}
+
+                <div className="form-field">
+                  <label htmlFor="title">{isArabic ? "عنوان الألبوم" : isEnglish ? "Album title" : "Titre général de l’album"}</label>
+                  <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="message">{isArabic ? "رسالة قصيرة للتقديم" : isEnglish ? "Short introduction" : "Petit texte d’introduction"}</label>
+                  <textarea id="message" rows={3} value={message} onChange={(event) => setMessage(event.target.value)} />
+                </div>
+              </div>
+            ) : null}
+
+            {step === 2 ? (
+              <div>
+                <p className="section-copy" style={{ marginBottom: "1rem" }}>
+                  {points.length}/{Number.isFinite(limits.maxPoints) ? limits.maxPoints : "∞"} {isArabic ? "ذكريات" : isEnglish ? "memories" : "souvenirs"}
+                </p>
+                {points.map((point) => {
+                  const parts = placeParts[point.id] || { country: "", city: "", district: "" };
+                  return (
+                    <article className={`poi-card-item ${activePointId === point.id ? "active" : ""}`} key={point.id} onFocus={() => setActivePointId(point.id)}>
+                      <div className="form-stack">
+                        <button className="segment-button" type="button" onClick={() => setActivePointId(point.id)}>
+                          {isArabic ? "تعديل الذكرى" : isEnglish ? "Edit memory" : "Modifier le souvenir"} #{point.order}
+                        </button>
+
+                        <div className="form-field">
+                          <label>{isArabic ? "اختر صورة" : isEnglish ? "Choose a photo" : "Choisir une photo"}</label>
+                          {point.media_url ? (
+                            <div className="media-preview-card">
+                              {point.media_type === "video" ? <video src={point.media_url} controls /> : <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />}
+                            </div>
+                          ) : null}
+                          <input type="file" accept={limits.videos ? "image/*,video/*" : "image/*"} disabled={!limits.media} onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
+                          <small className="field-hint">{uploadingPointId === point.id ? (isArabic ? "جاري الرفع..." : isEnglish ? "Uploading..." : "Upload en cours...") : isArabic ? "أضف صورة لهذه الذكرى." : isEnglish ? "Add a photo for this memory." : "Ajoutez une photo pour ce souvenir."}</small>
+                        </div>
+
+                        <div className="form-field">
+                          <label>{isArabic ? "عنوان الصورة" : isEnglish ? "Photo title" : "Titre de la photo"}</label>
+                          <input value={point.title} onChange={(event) => updatePoint(point.id, { title: event.target.value })} />
+                        </div>
+
+                        <div className="form-field">
+                          <label>{isArabic ? "النص" : isEnglish ? "Text" : "Texte"}</label>
+                          <textarea rows={2} value={point.description} onChange={(event) => updatePoint(point.id, { description: event.target.value })} />
+                        </div>
+
+                        <div className="structured-place-grid">
+                          <div className="form-field">
+                            <label>{isArabic ? "البلد" : isEnglish ? "Country" : "Pays"}</label>
+                            <input value={parts.country} onChange={(event) => updatePlacePart(point, "country", event.target.value)} placeholder={isArabic ? "فرنسا" : isEnglish ? "France" : "France"} />
+                          </div>
+                          <div className="form-field">
+                            <label>{isArabic ? "المدينة" : isEnglish ? "City" : "Ville"}</label>
+                            <input value={parts.city} onChange={(event) => updatePlacePart(point, "city", event.target.value)} placeholder={isArabic ? "باريس" : isEnglish ? "Paris" : "Paris"} />
+                          </div>
+                          <div className="form-field">
+                            <label>{isArabic ? "الحي أو المكان" : isEnglish ? "District or place" : "Quartier ou lieu"}</label>
+                            <input value={parts.district} onChange={(event) => updatePlacePart(point, "district", event.target.value)} placeholder={isArabic ? "برج إيفل" : isEnglish ? "Eiffel Tower" : "Tour Eiffel"} />
+                          </div>
+                        </div>
+
+                        <div className="place-search-row">
+                          <input value={point.location_query || point.place_name} onChange={(event) => updatePoint(point.id, { location_query: event.target.value, place_name: event.target.value })} placeholder={isArabic ? "ابحث عن مكان معروف..." : isEnglish ? "Search a known place..." : "Rechercher un lieu connu..."} />
+                          <button className="btn-secondary" type="button" onClick={() => searchPlace(point)}>{isArabic ? "بحث" : isEnglish ? "Find" : "Trouver"}</button>
+                        </div>
+
+                        <div className="form-field">
+                          <label>Date</label>
+                          <input type="date" value={point.date || ""} onChange={(event) => updatePoint(point.id, { date: event.target.value })} />
+                        </div>
+
+                        <div className="poi-actions">
+                          <button className="btn-secondary" type="button" onClick={() => selectCurrentPosition(point)}>{isArabic ? "استخدم موقعي" : isEnglish ? "Use my position" : "Utiliser ma position"}</button>
+                          <button className="btn-secondary" type="button" onClick={() => removePoint(point.id)} disabled={points.length === 1}>{isArabic ? "حذف" : isEnglish ? "Remove" : "Retirer"}</button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+                <button className="btn-secondary" type="button" onClick={addPoint} disabled={points.length >= limits.maxPoints}>{isArabic ? "إضافة ذكرى" : isEnglish ? "Add a memory" : "Ajouter un souvenir"}</button>
+              </div>
+            ) : null}
+
+            {step === 3 ? (
+              <div className="form-stack">
+                <div className="form-field">
+                  <label htmlFor="final-message">{isArabic ? "رسالة النهاية" : isEnglish ? "Final message" : "Message de fin"}</label>
+                  <textarea id="final-message" rows={5} value={finalMessage} onChange={(event) => setFinalMessage(event.target.value)} placeholder={recipientType === "self" ? (isArabic ? "اكتب نص نهاية لنفسك..." : isEnglish ? "Write a closing note for yourself..." : "Écrivez un texte de fin pour vous-même...") : (isArabic ? "اكتب رسالة أخيرة للشخص..." : isEnglish ? "Write the final message for them..." : "Écrivez le message final pour la personne...")} />
+                </div>
+                <AudioSelector lang={lang} selectedUrl={audioUrl} onSelect={setAudioUrl} />
+
+                <div className="form-field">
+                  <label htmlFor="secret-code">{isArabic ? "رمز سري (اختياري)" : isEnglish ? "Secret code (optional)" : "Code secret (optionnel)"}</label>
+                  <input id="secret-code" value={secretCode} onChange={(event) => setSecretCode(event.target.value)} placeholder={isArabic ? "مثال: 2405" : isEnglish ? "Example: 2405" : "Exemple : 2405"} />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="theme">Thème</label>
+                  <div className="theme-choice-grid" id="theme" role="radiogroup" aria-label="Theme">
+                    {ALL_THEMES.map((item) => {
+                      const isAvailable = availableThemes.includes(item);
+                      const isSelected = theme === item;
+                      return (
+                        <button className={`theme-choice-card ${isSelected ? "active" : ""} ${!isAvailable ? "disabled" : ""}`} key={item} type="button" role="radio" aria-checked={isSelected} aria-disabled={!isAvailable} disabled={!isAvailable} onClick={() => setTheme(item)}>
+                          <span className={`theme-swatch ${item}`} aria-hidden="true" />
+                          <strong>{getThemeLabel(item)}</strong>
+                          {!isAvailable ? <small>{isArabic ? "متاح في عرض أعلى" : isEnglish ? "Higher plan" : "Offre supérieure"}</small> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {step === 4 ? (
+              <div className="wizard-summary">
+                <p><strong>{isArabic ? "الوجهة" : isEnglish ? "Recipient" : "Destinataire"}:</strong> {recipientType === "self" ? getRecipientLabel(recipientType) : `${getRecipientLabel(recipientType)} — ${recipientName}`}</p>
+                <p><strong>{isArabic ? "الألبوم" : isEnglish ? "Album" : "Album"}:</strong> {title}</p>
+                <p><strong>{isArabic ? "الذكريات" : isEnglish ? "Memories" : "Souvenirs"}:</strong> {points.length}</p>
+                <p><strong>{isArabic ? "الموسيقى" : isEnglish ? "Music" : "Musique"}:</strong> {audioUrl ? (isArabic ? "مضافة" : isEnglish ? "Added" : "Ajoutée") : (isArabic ? "بدون موسيقى" : isEnglish ? "No music" : "Sans musique")}</p>
+              </div>
+            ) : null}
+          </section>
 
           {status ? (
             <p role="alert" className="section-copy">
               {status}
             </p>
           ) : null}
-          <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !title || points.length === 0}>
-            {plan === "mini" ? dictionary.cta.save : dictionary.cta.checkout}
-          </button>
+          <div className="wizard-actions">
+            <button className="btn-secondary" type="button" onClick={previousStep} disabled={step === 1}>{isArabic ? "رجوع" : isEnglish ? "Back" : "Retour"}</button>
+            {step < 4 ? (
+              <button className="btn-cta" type="button" onClick={nextStep} disabled={!canGoNext()}>{isArabic ? "متابعة" : isEnglish ? "Continue" : "Continuer"}</button>
+            ) : (
+              <button className="btn-cta" type="button" onClick={() => void submit()} disabled={isPending || !canGoNext()}>{plan === "mini" ? dictionary.cta.save : dictionary.cta.checkout}</button>
+            )}
+          </div>
         </div>
       </section>
 
