@@ -31,8 +31,39 @@ type CloudinaryConfig = {
   source: "CLOUDINARY_URL" | "separate_variables" | "invalid_cloudinary_url";
 };
 
+type ModerationConfig = {
+  provider: "sightengine" | "not_configured";
+  apiUser?: string;
+  apiSecret?: string;
+};
+
+type ModerationResult = {
+  allowed: boolean;
+  reason?: string;
+  scores?: Record<string, number>;
+};
+
 function cleanEnvValue(value?: string) {
   return value?.trim().replace(/^['"]|['"]$/g, "");
+}
+
+function getModerationConfig(): ModerationConfig {
+  const apiUser = cleanEnvValue(process.env.SIGHTENGINE_API_USER);
+  const apiSecret = cleanEnvValue(process.env.SIGHTENGINE_API_SECRET);
+
+  if (!apiUser || !apiSecret) return { provider: "not_configured" };
+  return { provider: "sightengine", apiUser, apiSecret };
+}
+
+function getModerationDiagnostics() {
+  const config = getModerationConfig();
+
+  return {
+    provider: config.provider,
+    configured: config.provider !== "not_configured",
+    apiUserPresent: Boolean(config.apiUser),
+    apiSecretPresent: Boolean(config.apiSecret),
+  };
 }
 
 function getCloudinaryConfig(): CloudinaryConfig {
@@ -94,11 +125,86 @@ function getCloudinaryDiagnostics() {
     apiSecretPresent: Boolean(config.apiSecret),
     cloudinaryUrlPresent: Boolean(rawCloudinaryUrl),
     cloudinaryUrlStartsCorrectly: rawCloudinaryUrl ? rawCloudinaryUrl.startsWith("cloudinary://") : false,
+    moderation: getModerationDiagnostics(),
     message:
       config.missing.length === 0
         ? "Cloudinary configuration is visible to Vercel. If upload still fails with 401, the API key/secret/cloud name combination is invalid."
         : `Cloudinary configuration is incomplete in Vercel. Missing: ${config.missing.join(", ")}.`,
   };
+}
+
+function maxScore(scores: Array<number | undefined>) {
+  return Math.max(...scores.filter((score): score is number => typeof score === "number"), 0);
+}
+
+async function moderateImageBeforeCloudinary(bytes: Buffer, mimeType: string, fileName: string): Promise<ModerationResult> {
+  const config = getModerationConfig();
+
+  if (config.provider === "not_configured" || !config.apiUser || !config.apiSecret) {
+    return {
+      allowed: false,
+      reason:
+        "Image moderation is not configured. To protect the platform, image uploads are temporarily blocked until SIGHTENGINE_API_USER and SIGHTENGINE_API_SECRET are configured.",
+    };
+  }
+
+  const formData = new FormData();
+  formData.append("media", new Blob([new Uint8Array(bytes)], { type: mimeType }), fileName);
+  formData.append("models", "nudity-2.0,wad,offensive");
+  formData.append("api_user", config.apiUser);
+  formData.append("api_secret", config.apiSecret);
+
+  const response = await fetch("https://api.sightengine.com/1.0/check.json", {
+    method: "POST",
+    body: formData,
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    status?: string;
+    error?: { message?: string };
+    nudity?: Record<string, number>;
+    weapon?: number;
+    alcohol?: number;
+    drugs?: number;
+    offensive?: Record<string, number>;
+  };
+
+  if (!response.ok || payload.status === "failure") {
+    return {
+      allowed: false,
+      reason: payload.error?.message || "Image moderation failed. Upload blocked to protect the platform.",
+    };
+  }
+
+  const nudity = payload.nudity || {};
+  const adultScore = maxScore([
+    nudity.sexual_activity,
+    nudity.sexual_display,
+    nudity.erotica,
+    nudity.very_suggestive,
+    nudity.suggestive,
+  ]);
+  const unsafeScore = maxScore([payload.weapon, payload.alcohol, payload.drugs]);
+  const offensiveScore = maxScore(Object.values(payload.offensive || {}));
+  const scores = { adultScore, unsafeScore, offensiveScore };
+
+  if (adultScore >= 0.35) {
+    return {
+      allowed: false,
+      reason: "This image appears to contain nudity or adult content. Please choose another photo.",
+      scores,
+    };
+  }
+
+  if (unsafeScore >= 0.75 || offensiveScore >= 0.85) {
+    return {
+      allowed: false,
+      reason: "This image appears to contain unsafe or offensive content. Please choose another photo.",
+      scores,
+    };
+  }
+
+  return { allowed: true, scores };
 }
 
 function getOptimizedCloudinaryUrl(url: string, resourceType: string) {
@@ -239,6 +345,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File is too large after compression. Please choose a smaller file." }, { status: 413 });
     }
 
+    const resourceType = file.type.startsWith("video/") || file.type.startsWith("audio/") ? "video" : "image";
+    const bytes = Buffer.from(await file.arrayBuffer());
+
+    if (resourceType === "image") {
+      const moderation = await moderateImageBeforeCloudinary(
+        bytes,
+        file.type || "image/webp",
+        file.name || "pinstory-upload.webp",
+      );
+
+      if (!moderation.allowed) {
+        return NextResponse.json(
+          {
+            error: moderation.reason || "Image rejected by moderation.",
+            moderation: {
+              provider: getModerationDiagnostics().provider,
+              scores: moderation.scores,
+            },
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const { cloudName, apiKey, apiSecret, missing } = getCloudinaryConfig();
 
     if (missing.length > 0) {
@@ -252,8 +382,6 @@ export async function POST(request: Request) {
     }
 
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
-    const resourceType = file.type.startsWith("video/") || file.type.startsWith("audio/") ? "video" : "image";
-    const bytes = Buffer.from(await file.arrayBuffer());
     const upload = await uploadToCloudinaryRest({
       bytes,
       resourceType,

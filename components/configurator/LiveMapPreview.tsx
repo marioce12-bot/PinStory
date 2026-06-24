@@ -21,7 +21,7 @@ export function LiveMapPreview({
     const x = (event.clientX - bounds.left) / bounds.width;
     const y = (event.clientY - bounds.top) / bounds.height;
 
-    // Preview-only coordinate approximation centered around Paris until real Mapbox editing is connected.
+    // Preview-only coordinate approximation centered around Paris until real map editing is connected.
     const longitude = 2.3522 + (x - 0.5) * 0.28;
     const latitude = 48.8566 - (y - 0.5) * 0.18;
     onPickLocation(Number(longitude.toFixed(5)), Number(latitude.toFixed(5)), "Point sélectionné sur la carte");

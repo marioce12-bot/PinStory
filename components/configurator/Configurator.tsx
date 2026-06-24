@@ -33,9 +33,19 @@ const defaultPoint = (order: number, lang: Locale): MemoryPoint => ({
   latitude: 48.8584 + order * 0.01,
 });
 
-type GeocodingFeature = {
+type MapTilerFeature = {
   place_name?: string;
+  text?: string;
   center?: [number, number];
+  geometry?: {
+    coordinates?: [number, number];
+  };
+};
+
+type NominatimPlace = {
+  display_name?: string;
+  lon?: string;
+  lat?: string;
 };
 
 const MAX_UPLOAD_IMAGE_SIZE = 1280;
@@ -196,30 +206,50 @@ export function Configurator({
     const query = point.location_query?.trim() || point.place_name.trim();
     if (!query) return;
 
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token) {
+    const mapTilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+
+    try {
+      if (mapTilerKey) {
+        const response = await fetch(
+          `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${mapTilerKey}&language=${memoryLang}&limit=1`,
+        );
+        const result = (await response.json()) as { features?: MapTilerFeature[] };
+        const feature = result.features?.[0];
+        const coordinates = feature?.center || feature?.geometry?.coordinates;
+
+        if (coordinates) {
+          updatePoint(point.id, {
+            place_name: feature?.place_name || feature?.text || query,
+            location_query: query,
+            longitude: coordinates[0],
+            latitude: coordinates[1],
+          });
+          return;
+        }
+      }
+
+      const nominatimResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+        { headers: { "Accept-Language": memoryLang } },
+      );
+      const places = (await nominatimResponse.json()) as NominatimPlace[];
+      const place = places[0];
+
+      if (!place?.lat || !place.lon) {
+        setStatus(isArabic ? "لم يتم العثور على مكان. جرّب مدينة أو عنواناً أو معلماً." : isEnglish ? "No place found. Try a city, address or landmark." : "Aucun lieu trouvé. Essayez une ville, une adresse ou un monument.");
+        return;
+      }
+
+      updatePoint(point.id, {
+        place_name: place.display_name || query,
+        location_query: query,
+        longitude: Number(place.lon),
+        latitude: Number(place.lat),
+      });
+    } catch {
       updatePoint(point.id, { place_name: query, location_query: query });
-      setStatus(isArabic ? "Mapbox غير مفعّل حالياً. تم حفظ نص المكان." : isEnglish ? "Mapbox is not configured yet. The place text was saved." : "Mapbox n’est pas encore configuré. Le lieu saisi a été sauvegardé.");
-      return;
+      setStatus(isArabic ? "تم حفظ المكان. يمكنك النقر على المعاينة لتقريب الموقع." : isEnglish ? "Place saved. You can click the preview to refine the position." : "Lieu enregistré. Vous pouvez cliquer sur l’aperçu pour affiner l’emplacement.");
     }
-
-    const response = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=${memoryLang}&limit=1`,
-    );
-    const result = (await response.json()) as { features?: GeocodingFeature[] };
-    const feature = result.features?.[0];
-
-    if (!feature?.center) {
-      setStatus(isArabic ? "لم يتم العثور على مكان. جرّب مدينة أو عنواناً أو معلماً." : isEnglish ? "No place found. Try a city, address or landmark." : "Aucun lieu trouvé. Essayez une ville, une adresse ou un monument.");
-      return;
-    }
-
-    updatePoint(point.id, {
-      place_name: feature.place_name || query,
-      location_query: query,
-      longitude: feature.center[0],
-      latitude: feature.center[1],
-    });
   }
 
   function selectCurrentPosition(point: MemoryPoint) {

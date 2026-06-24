@@ -2,14 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import "mapbox-gl/dist/mapbox-gl.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
+import maplibregl from "maplibre-gl";
 import { BackgroundMusic } from "@/components/map/BackgroundMusic";
 import { BrandLogo } from "@/components/shared/BrandLogo";
-import { getMapboxStyle } from "@/lib/plans";
+import { getMapTilerStyle } from "@/lib/plans";
 import type { MemoryMap } from "@/lib/types";
 
 type Dictionary = typeof import("@/dictionaries/fr.json");
@@ -76,29 +76,32 @@ function getCopy(lang: MemoryMap["lang"]) {
 
 export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<HTMLElement[]>([]);
   const flyTimeoutRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [phase, setPhase] = useState<StoryPhase>(map.secret_code ? "locked" : "intro");
+  const [hasInteractiveMap, setHasInteractiveMap] = useState(false);
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const mapTilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   const currentPoint = map.points[activeIndex] || map.points[0];
   const copy = useMemo(() => getCopy(map.lang), [map.lang]);
 
   useEffect(() => {
-    if (!containerRef.current || !mapboxToken || mapRef.current || map.points.length === 0) return;
+    if (!containerRef.current || mapRef.current || map.points.length === 0) return;
 
-    mapboxgl.accessToken = mapboxToken;
     const firstPoint = map.points[0];
-    const instance = new mapboxgl.Map({
+    const instance = new maplibregl.Map({
       container: containerRef.current,
-      style: getMapboxStyle(map.theme_style),
+      style: getMapTilerStyle(map.theme_style, mapTilerKey),
       center: [firstPoint.longitude, firstPoint.latitude],
       zoom: 3,
       pitch: 0,
     });
+
+    instance.once("load", () => setHasInteractiveMap(true));
+    instance.once("error", () => setHasInteractiveMap(false));
 
     markersRef.current = map.points.map((point, index) => {
       const markerElement = document.createElement("button");
@@ -110,11 +113,11 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
         setPhase("modal");
       });
 
-      new mapboxgl.Marker(markerElement).setLngLat([point.longitude, point.latitude]).addTo(instance);
+      new maplibregl.Marker({ element: markerElement }).setLngLat([point.longitude, point.latitude]).addTo(instance);
       return markerElement;
     });
 
-    instance.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "bottom-right");
+    instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     mapRef.current = instance;
 
     return () => {
@@ -122,8 +125,9 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       instance.remove();
       mapRef.current = null;
       markersRef.current = [];
+      setHasInteractiveMap(false);
     };
-  }, [map.points, map.theme_style, mapboxToken]);
+  }, [map.points, map.theme_style, mapTilerKey]);
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
@@ -180,7 +184,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
 
     setPhase("final");
     if (mapRef.current && map.points.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
+      const bounds = new maplibregl.LngLatBounds();
       map.points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
       mapRef.current.fitBounds(bounds, { padding: 90, duration: 3500, pitch: 0, bearing: 0 });
     }
@@ -224,9 +228,11 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   return (
     <main className={`cinematic-map-shell phase-${phase}`}>
       <BackgroundMusic audioUrl={map.audioUrl} lang={map.lang} />
-      {mapboxToken ? <div ref={containerRef} className="map-container-fullscreen" /> : <div className="map-fallback" />}
+      <div ref={containerRef} className="map-container-fullscreen" />
 
-      {!mapboxToken ? (
+      {!hasInteractiveMap ? <div className="map-fallback" /> : null}
+
+      {!hasInteractiveMap ? (
         <div className="map-fallback-markers" aria-hidden="true">
           {map.points.slice(0, 8).map((point, index) => (
             <button

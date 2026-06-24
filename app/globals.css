@@ -1838,7 +1838,7 @@ button.audio-track-card {
   box-shadow: 0 0 0 7px rgba(0, 234, 154, 0.18);
 }
 
-.mapboxgl-popup-content {
+.maplibregl-popup-content {
   border-radius: var(--radius-md) !important;
   padding: 0 !important;
   overflow: hidden;

@@ -64,16 +64,18 @@ export function getPlanExpiry(plan: Plan, createdAt = new Date()) {
   return expiresAt.toISOString();
 }
 
-export function getMapboxStyle(theme: string) {
+export function getMapTilerStyle(theme: string, key?: string) {
+  if (!key) return "https://demotiles.maplibre.org/style.json";
+
   switch (theme) {
     case "dark-luxe":
-      return "mapbox://styles/mapbox/dark-v11";
+      return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${key}`;
     case "pastel":
-      return "mapbox://styles/mapbox/light-v11";
+      return `https://api.maptiler.com/maps/pastel/style.json?key=${key}`;
     case "premium-gold":
-      return "mapbox://styles/mapbox/navigation-night-v1";
+      return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${key}`;
     case "minimalist":
     default:
-      return "mapbox://styles/mapbox/streets-v12";
+      return `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
   }
 }
