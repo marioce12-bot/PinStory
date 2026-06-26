@@ -179,6 +179,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const [act, setAct] = useState<ExperienceAct>(map.secret_code ? "locked" : "ready");
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState<string | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState<MemoryMap["points"][number] | null>(null);
   const isMobile = useIsMobile();
   const mapTilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   const currentPoint = map.points[activeIndex] || map.points[0];
@@ -231,6 +232,30 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       markersRef.current = [];
     };
   }, [map.points, map.theme_style, mapTilerKey]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreenMedia(null);
+    };
+    const handlePopState = () => setFullscreenMedia(null);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  function openFullscreenMedia(point: MemoryMap["points"][number]) {
+    setFullscreenMedia(point);
+    window.history.pushState({ pinstoryFullscreenMedia: true }, "");
+  }
+
+  function closeFullscreenMedia() {
+    setFullscreenMedia(null);
+  }
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
@@ -433,9 +458,9 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
         {act === "modal" && currentPoint ? (
           <motion.section className="cinematic-memory-modal" initial={{ opacity: 0, y: 36, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.97 }}>
             {currentPoint.media_url ? (
-              <div className="cinematic-memory-media">
-                {currentPoint.media_type === "video" ? <video src={currentPoint.media_url} controls /> : <img src={currentPoint.media_url} alt={currentPoint.title || currentPoint.place_name} />}
-              </div>
+              <button className="cinematic-memory-media" type="button" onClick={() => openFullscreenMedia(currentPoint)} aria-label="Open media fullscreen">
+                {currentPoint.media_type === "video" ? <video src={currentPoint.media_url} muted playsInline /> : <img src={currentPoint.media_url} alt={currentPoint.title || currentPoint.place_name} />}
+              </button>
             ) : null}
             <p className="popup-date">{currentPoint.date}</p>
             <h2>{currentPoint.title || currentPoint.place_name}</h2>
@@ -460,6 +485,21 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
                 <p>{copy.giftCtaText}</p>
                 <a className="btn-cta" href={`/${map.lang}`}>{copy.giftCtaButton}</a>
               </article>
+            </div>
+          </motion.section>
+        ) : null}
+
+        {fullscreenMedia?.media_url ? (
+          <motion.section className="fullscreen-media-viewer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <button className="fullscreen-media-close" type="button" onClick={closeFullscreenMedia} aria-label="Close fullscreen media">
+              ×
+            </button>
+            <div className="fullscreen-media-content">
+              {fullscreenMedia.media_type === "video" ? (
+                <video src={fullscreenMedia.media_url} controls autoPlay playsInline />
+              ) : (
+                <img src={fullscreenMedia.media_url} alt={fullscreenMedia.title || fullscreenMedia.place_name} />
+              )}
             </div>
           </motion.section>
         ) : null}
