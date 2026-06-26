@@ -317,6 +317,11 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
   async function uploadMedia(point: MemoryPoint, file: File | undefined) {
     if (!file) return;
 
+    if (file.type.startsWith("video/") && !limits.videos) {
+      setStatus(isArabic ? "الفيديوهات متاحة فقط في خطتي Souvenir و Eternal." : isEnglish ? "Videos are only included in Souvenir and Eternal plans." : "Les vidéos sont incluses uniquement dans les plans Souvenir et Eternal.");
+      return;
+    }
+
     try {
       if (file.type.startsWith("video/")) {
         const { duration, previewUrl } = await getVideoDuration(file);
@@ -517,7 +522,7 @@ export function Configurator({ lang, dictionary, initialPlan }: { lang: Locale; 
                               {point.media_type === "video" ? <video src={point.media_url} controls /> : <Image src={point.media_url} alt={point.title || point.place_name} width={420} height={260} />}
                             </div>
                           ) : null}
-                          <input type="file" accept="image/*,video/*" onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
+                          <input type="file" accept={limits.videos ? "image/*,video/*" : "image/*"} onChange={(event) => uploadMedia(point, event.target.files?.[0])} />
                           <small className="field-hint">
                             {isArabic
                               ? "الفيديوهات محددة بـ 20 ثانية. إذا كانت أطول، اختر المقطع المطلوب."

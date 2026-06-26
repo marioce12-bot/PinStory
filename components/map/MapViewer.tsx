@@ -206,13 +206,13 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       pitch: 0,
     });
 
-    markersRef.current = map.points.map((point, index) => {
+    markersRef.current = map.points.map((point) => {
       const marker = document.createElement("button");
       marker.type = "button";
       marker.className = "story-pin";
       marker.setAttribute("aria-label", point.title || point.place_name);
       marker.addEventListener("click", () => {
-        if (index !== activeIndex) return;
+        if (!marker.classList.contains("active")) return;
         setAct("modal");
       });
 
@@ -229,7 +229,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
       mapRef.current = null;
       markersRef.current = [];
     };
-  }, [activeIndex, map.points, map.theme_style, mapTilerKey]);
+  }, [map.points, map.theme_style, mapTilerKey]);
 
   useEffect(() => {
     markersRef.current.forEach((marker, index) => {
