@@ -174,6 +174,7 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<HTMLElement[]>([]);
   const timersRef = useRef<number[]>([]);
+  const sequenceRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [act, setAct] = useState<ExperienceAct>(map.secret_code ? "locked" : "ready");
   const [secretInput, setSecretInput] = useState("");
@@ -239,12 +240,16 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   }, [act, activeIndex]);
 
   function clearTimers() {
+    sequenceRef.current += 1;
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
     timersRef.current = [];
   }
 
-  function schedule(callback: () => void, delay: number) {
-    const timer = window.setTimeout(callback, delay);
+  function schedule(callback: () => void, delay: number, sequence = sequenceRef.current) {
+    const timer = window.setTimeout(() => {
+      if (sequenceRef.current !== sequence) return;
+      callback();
+    }, delay);
     timersRef.current.push(timer);
   }
 
@@ -270,11 +275,12 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   function runFullSequence(index = 0) {
     const factor = isMobile ? 0.7 : 1;
     clearTimers();
+    const sequence = sequenceRef.current;
     setActiveIndex(index);
     setAct("space");
-    schedule(() => setAct("clouds"), 3600 * factor);
-    schedule(() => setAct("flash"), 6100 * factor);
-    schedule(() => revealMap(index), 8500 * factor);
+    schedule(() => setAct("clouds"), 3600 * factor, sequence);
+    schedule(() => setAct("flash"), 6100 * factor, sequence);
+    schedule(() => revealMap(index), 8500 * factor, sequence);
   }
 
   function restartJourney() {
@@ -299,10 +305,11 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   function runShortSequence(index: number) {
     const factor = isMobile ? 0.7 : 1;
     clearTimers();
+    const sequence = sequenceRef.current;
     setActiveIndex(index);
     setAct("clouds");
-    schedule(() => setAct("flash"), 2100 * factor);
-    schedule(() => revealMap(index), 4300 * factor);
+    schedule(() => setAct("flash"), 1600 * factor, sequence);
+    schedule(() => revealMap(index), 3200 * factor, sequence);
   }
 
   function skipToMap() {
@@ -313,7 +320,6 @@ export function MapViewer({ map }: { map: MemoryMap; dictionary: Dictionary }) {
   function continueJourney() {
     const nextIndex = activeIndex + 1;
     if (nextIndex < map.points.length) {
-      setAct("map");
       runShortSequence(nextIndex);
       return;
     }

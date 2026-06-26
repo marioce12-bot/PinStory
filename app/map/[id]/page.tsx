@@ -64,7 +64,7 @@ async function getMemoryMap(id: string): Promise<MemoryMap | null> {
 
   const supabase = getSupabaseAdmin();
 
-  if (!supabase) return getDemoMap(id);
+  if (!supabase) return id === "demo" ? getDemoMap(id) : null;
 
   const { data: map } = await supabase.from("maps").select("*").eq("id", id).single();
   if (!map) return null;
